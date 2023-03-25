@@ -195,12 +195,6 @@ class OLSQ:
             self.count_program_qubit = program[0]
             self.list_gate_qubits = program[1]
             self.list_gate_name = program[2]
-        elif input_mode == "benchmark":
-            f = pkgutil.get_data(__name__, "benchmarks/" + program + ".qasm")
-            program = input_qasm(f.decode("utf-8"))
-            self.count_program_qubit = program[0]
-            self.list_gate_qubits = program[1]
-            self.list_gate_name = program[2]
         else:
             program = input_qasm(program)
             self.count_program_qubit = program[0]
@@ -765,7 +759,7 @@ class OLSQ:
             print("Bound of Trying min swap = {}...".format(bound_swap_num))
             start_time = datetime.datetime.now()
             lsqc.push()
-            # TODO: add atmost-k constraint
+            # add atmost-k constraint
             self._add_atmostk_cnf(lsqc, sigma, bound_swap_num, tight_bound_depth)
             satisfiable = lsqc.check()
             print("status:{}, optimization time = {}, time including preprocessing = {}".format(satisfiable, datetime.datetime.now() - start_time, timeit.default_timer()-self.start))
@@ -1061,7 +1055,9 @@ class OLSQ:
             else:
                 raise ValueError("Expect SWAP duration one, or three")
 
-
+        if self.obj_is_swap:
+            objective_value = len(list_result_swap)    
+        objective_value = result_depth
         if output_mode == "IR":
             if output_file_name:
                 output_file = open(output_file_name, 'w')
@@ -1072,7 +1068,8 @@ class OLSQ:
                     list_scheduled_gate_name,
                     list_scheduled_gate_qubits,
                     final_mapping,
-                    initial_mapping)
+                    initial_mapping,
+                    objective_value)
         else:
             return (output_qasm(self.device, result_depth, list_scheduled_gate_name,
                                 list_scheduled_gate_qubits, final_mapping,

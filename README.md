@@ -1,25 +1,25 @@
 [![dac](https://img.shields.io/badge/Published-DAC'23-brightgreen.svg?style=for-the-badge)]()
 
-# OLSQ: Optimal Layout Synthesis for Quantum Computing
+# OLSQ2: Scalable Optimal Layout Synthesis for NISQ Quantum Processors
 
 Many quantum computers have constraints on the connections between qubits.
 However, a quantum program may not conform to these constraints.
 Thus, it is necessary to perform 'layout synthesis for quantum computing', LSQC, which transforms quantum programs prior to execution so that the connectivity issues are resolved.
 
-OLSQ can solve LSQC optimally with respect to depth, number of SWAP gates, or fidelity.
+OLSQ2 can solve LSQC optimally with respect to depth and number of SWAP gates.
 There is also a transition-based mode (TB) to speed it up with little loss of optimality.
-TB-OLSQ can reduce SWAP count by 70% and increase fidelity by 1.30x compared to leading previous works at the time of publication.
 
-For more details on the theory and the experiments, please refer to [the paper](https://doi.org/10.1145/3400302.3415620).
-For more details on the software implementation, please refer to the [API documentation](https://olsq.readthedocs.io/en/latest/).
+For more details on the theory and the experiments, please refer to [the paper]().
 Below is a brief tutorial on how to use the package.
 
 ## Installation
 
+Clone this repo:
 ```
-pip install -U olsq
+git clone git@github.com:WanHsuanLin/OLSQ2.git
 ```
-Please make sure that you have `networkx` version `>=2.5` and `z3-solver` version `>=4.8.9.0` in your Python environment.
+Please make sure that you have `pySAT` version `>=0.1.7` and `z3-solver` version `>=4.8.15.0` in your Python environment.
+To reproduce the results reported in [the paper](), please install `z3-solver` with version `4.8.15.0`
 
 ## Initialization
 
@@ -30,19 +30,16 @@ from olsq import OLSQ
 lsqc_solver = OLSQ("depth", "normal")
 ```
 
-There are two argument in the constructor of OLSQ: `objective_name` and `mode`.
-- `objective_name`: `"depth"`, `"swap"`, or `"fidelity"`.
-- `mode`:  `"normal"` or `"transition"`.
-The latter stands for TB-OLSQ in the paper, which is usually much faster with little loss of optimality.
+There are four argument in the constructor of OLSQ: `obj_is_swap`, `mode`, `encoding`, and `swap_up_bound`.
+- `obj_is_swap`: `True` to set SWAP count as objective or `False` to set depth as objective.
+- `mode`:  `"normal"` or `"transition"`. The latter stands for TB-OLSQ in the paper, which is usually much faster with little loss of optimality.
+- `encoding`: Different strategies for [pySAT](https://pysathq.github.io/docs/html/api/card.html#pysat.card.CardEnc) to encode cardinality constraint by CNF. Options: `1`, `2`, `3`, `6`, `7` and `8`.
+- `swap_up_bound`:  Users can specify the starting point for SWAP optimization.
 
 ## Setting the device
 
 To perform LSQC, we need to know the connections between the qubits, which is information about the physical device.
-We are going to use the `setdevice` method.
-In general, there are three ways: 
-1. Directly construct a device with some properties.
-2. Use one of the hard-coded devices (including all the devices appeared in the paper).
-3. Use device defined in other packages: refer to later parts of this tutorial on [Cirq](#cirq-interface) and [Qiskit](#qiskit-interface).
+We are going to use the `setdevice` method by directly construct a device with some properties.
 
 ```
 from olsq.device import qcdevice
@@ -50,25 +47,6 @@ from olsq.device import qcdevice
 # directly construct a device from properties needed by olsq
 lsqc_solver.setdevice( qcdevice(name="dev", nqubits=5, 
      connection=[(0, 1), (1, 2), (1, 3), (3, 4)], swap_duration=3) )
-```
-
-We use a minimalist class `qcdevice` to store the properties of the device that we need, which can be constructed with these arguments.
-(The last three are only for fidelity optimization.)
-- `name`
-- `nqubits`: the number of physical qubits
-- `connection`: a list of physical qubit pairs corresponding to edges in the coupling graph
-- `swap_duration`: number of cycles a SWAP gate takes.
-   Usually it is either one, or three meaning three CX gates.
-- `fmeas`: a list of measurement fidelity
-- `fsingle`: a list of single-qubit gate fidelity
-- `ftwo`: a list of two-qubit gate fidelity, indices aligned with `connection`
-
-If `name` starts with `"default_"`, a hard-coded device stored in `olsq/devices/` would be loaded.
-Other arguments can still be specified, in which case the original device properties would be replaced by the input.
-```
-# use a hard-coded device in olsq/devices/ called ourense
-# which actually has the same properties as the device we constructed above
-lsqc_solver.setdevice( qcdevice("default_ourense") )
 ```
 
 ## Setting the Input Program
@@ -80,8 +58,6 @@ OLSQ has an intermediate representation (IR) of quantum programs. (For details, 
 In general, there are four ways to set the program: 
 1. Use OLSQ IR
 2. Use a string in QASM format
-3. Use an QASM file, e.g., one of programs used in the paper in `olsq/benchmarks/`.
-4. Use programs defined in other packages: refer to later parts of this tutorial on [Cirq](#cirq-interface) and [Qiskit](#qiskit-interface).
 
 ```
 circuit_str = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[3];\nh q[2];\n" \
@@ -127,9 +103,9 @@ result = lsqc_solver.solve()
 ```
 
 The `solve` method can take two optional arguemnts
+- `use_sabre`: `True` to use SABRE to get the upper bound of the SWAP count for SWAP optimization.
 - `output_mode`: can be `"IR"`. Refer [here](#olsq-ir) on what would be returned in this case.
 - `output_file_name`
-
 If `output_mode` is default, the return is a tuple of three things:
 - A string representing the output quantum program in QASM format.
 If `output_file_name` is provided, then the QASM string would be written to that file.
@@ -155,56 +131,11 @@ Note that a SWAP gate, decomposed into three CX gates, has been inserted.
 #                                                                                   2  0  1
 ```
 
-## Cirq Interface
 
-We can input a `networkx.Graph` object representing the devie to `setdevicegraph`.
-Note that the method name is different from `setdevice`.
-(Such a representation is used in some components in Cirq, e.g.,`device_graph` on [this line](https://github.com/quantumlib/Cirq/blob/8f9d8597364b8bd0d29833cbbd014ebf1c62f3db/cirq/contrib/quantum_volume/quantum_volume.py#L215).)
-
-We can input a `cirq.Circuit` object as program in `setprogram`.
-```
-from olsq.olsq_cirq import OLSQ_cirq
-
-lsqc_solver = OLSQ_cirq("depth", "normal")
-
-# use a cirq.Circuit object as program
-lsqc_solver.setprogram(circuit)
-
-# use a networkx.Graph object representing the device
-lsqc_solver.setdevicegraph(device_graph)
-
-# result_circuit is a cirq.Circuit object
-result_circuit, final_mapping, objective_value = lsqc_solver.solve()
-```
-## Qiskit Interface
-
-A `backend` from `IBMQ` can be input to the `setdevice` method with the second argument set to `"ibm"`.
-
-There are two arguments for the `setprogram` method of `OLSQ_qiskit`: if the second is `"qasm"`, input a QASM string representing the quantum program as the first argument; if the second is none, then input a `QuantumCircuit` object in Qiskit as the first argument.
-
-```
-from qiskit import IBMQ
-from olsq.olsq_qiskit import OLSQ_qiskit
-
-lsqc_solver = OLSQ_qiskit("depth", "normal")
-
-# use a qiskit.QuantumCircuit object as program
-lsqc_solver.setprogram(circuit)
-
-provider = IBMQ.load_account()
-backend = provider.get_backend("ibmq_lima") # change to your backend of choice
-# use an IBMQ backend as the device
-lsqc_solver.setdevice(backend, "ibm")
-
-# result_circuit is a qiskit.QuantumCircuit object
-result_circuit, final_mapping, objective_value = lsqc_solver.solve()
-```
-
-## TB-OLSQ
+## TB-OLSQ2
 
 The transition-based mode is enabled if chosen at the initiation of `OLSQ`.
 Roughly speaking, we only use a kind of coarse-grain time in this mode, so the runtime is much shorter.
-For theoretical details, please refer to [the paper](https://doi.org/10.1145/3400302.3415620).
 The returned QASM string and `final_mapping` should be similar to what they were before.
 Only if the objective is `"depth"`, the objective value would be very different from the normal mode.
 There is only one SWAP inserted, so there are only two coarse-grain time steps, separated by the SWAP, whereas there are 14 time steps if using exact time.
@@ -239,23 +170,4 @@ If in the `solve` method, `output_mode` is set to `"IR"`, the return is a tuple 
 
 ## BibTeX Citation
 ```
-@InProceedings{iccad20-tan-cong-optimal-layout-synthesis,
-  author          = {Tan, Bochen and Cong, Jason},
-  booktitle       = {Proceedings of the 39th International Conference on Computer-Aided Design},
-  title           = {Optimal Layout Synthesis for Quantum Computing},
-  year            = {2020},
-  address         = {New York, NY, USA},
-  publisher       = {Association for Computing Machinery},
-  series          = {ICCAD '20},
-  archiveprefix   = {arXiv},
-  eprint          = {2007.15671},
-  primaryclass    = {quant-ph},
-  articleno       = {137},
-  doi             = {10.1145/3400302.3415620},
-  isbn            = {9781450380263},
-  keywords        = {quantum computing, scheduling, allocation, mapping, placement, layout synthesis},
-  location        = {Virtual Event, USA},
-  numpages        = {9},
-  url             = {https://doi.org/10.1145/3400302.3415620},
-}
 ```
