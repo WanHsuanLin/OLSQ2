@@ -15,7 +15,7 @@ MEMORY_MAX_SIZE = 0
 MAX_TREAD_NUM = 8
 VERBOSE = 10
 # encoding 0 4 5 can only be applied to bound = 1 or len(lit) - 1
-CARD_ENCODING = 2
+CARD_ENCODING = 1
 # pairwise    = 0
 # seqcounter  = 1
 # sortnetwrk  = 2
@@ -102,7 +102,7 @@ def dependency_extracting(list_gate_qubits, count_program_qubit: int):
 
 
 class OLSQ:
-    def __init__(self, obj_is_swap, mode, encoding, use_sabre_mapping, swap_up_bound = -1, thread = 1):
+    def __init__(self, obj_is_swap, mode, encoding, swap_up_bound = -1):
         """Set the objective of OLSQ, and whether it is transition-based
 
         Args:
@@ -140,10 +140,8 @@ class OLSQ:
         self.list_gate_dependency = []
         self.card_encoding = encoding
         self.swap_up_bound = swap_up_bound
-        self.thread = thread
         self.start = 0
         self.swap_sabre = 0
-        self.use_sabre_mapping = use_sabre_mapping
         # self.ancillary_var_counter = 0
 
     def setdevice(self, device: qcdevice):
