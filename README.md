@@ -1,6 +1,4 @@
-[![iccad](https://img.shields.io/badge/Published-ICCAD'20-brightgreen.svg?style=for-the-badge)](https://ieeexplore.ieee.org/document/9256696)
-[![arXiv](https://img.shields.io/badge/arXiv-2007.15671-brightgreen.svg?style=for-the-badge)](https://arxiv.org/abs/2007.15671)
-[![Unitary Fund](https://img.shields.io/badge/Supported%20By-UNITARY%20FUND-brightgreen.svg?style=for-the-badge)](http://unitary.fund)
+[![dac](https://img.shields.io/badge/Published-DAC'23-brightgreen.svg?style=for-the-badge)]()
 
 # OLSQ: Optimal Layout Synthesis for Quantum Computing
 

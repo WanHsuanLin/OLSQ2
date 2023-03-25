@@ -1,5 +1,4 @@
 import argparse
-from unittest import result
 from olsq.device import qcdevice
 from olsq import OLSQ
 import json
@@ -86,13 +85,6 @@ def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, encoding
     print('Time: ', stop - start)  
     return result
 
-def dump_olsq(obj_is_swap, circuit_info, device, folder, encoding):
-    lsqc_solver = OLSQ(obj_is_swap = obj_is_swap, mode="normal", encoding = encoding)
-    lsqc_solver.setprogram(circuit_info)
-    lsqc_solver.setdevice(device)
-    lsqc_solver.dump(folder)
-    return
-
 if __name__ == "__main__":
     # Initialize parser
     parser = argparse.ArgumentParser()
@@ -108,21 +100,15 @@ if __name__ == "__main__":
     parser.add_argument("--qf", dest="qasm", type=str,
         help="Input file name")
     parser.add_argument("--encoding", dest="encoding", type=int, default=1,
-        help="seqcounter  = 1, sortnetwrk  = 2, cardnetwrk  = 3, totalizer   = 6, mtotalizer  = 7. kmtotalizer = 8, native = 9")
+        help="seqcounter = 1, sortnetwrk  = 2, cardnetwrk  = 3, totalizer   = 6, mtotalizer  = 7. kmtotalizer = 8, native = 9")
     parser.add_argument("--sabre", action='store_true', default=False,
         help="Use sabre to get SWAP upper bound")
     parser.add_argument("--tran", action='store_true', default=False,
         help="Use TB-OLSQ")
     parser.add_argument("--swap", action='store_true', default=False,
         help="Optimize SWAP")
-    parser.add_argument("--dump", action='store_true', default=False,
-        help="Only dump constraint")
-    parser.add_argument("--test_sabre", action='store_true', default=False,
-        help="test sabre scalability")
     parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
         help="user define swap bound")
-    parser.add_argument("--use_sabre_mapping", action='store_true', default=False,
-        help="test sabre scalability")
     # Read arguments from command line
     args = parser.parse_args()
 
@@ -136,35 +122,25 @@ if __name__ == "__main__":
     else:
         device = get_device_by_name(args.device_type, swap_duration)
 
-    if args.dump:
-        dump_olsq(args.swap, circuit_info, device, args.folder, args.encoding)
-    elif args.test_sabre:
-        import datetime
-        from olsq.run_h_compiler import run_sabre
-        start_time = datetime.datetime.now()
-        swap_num, depth, _ = run_sabre(args.benchmark, circuit_info, device.list_qubit_edge, device.count_physical_qubit)
-        print("Run heuristic compiler sabre to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
-        print("Heuristic optimization time = {}".format(datetime.datetime.now() - start_time))
-    else:
-        data = dict()
-        b_file = args.qasm.split('.')
-        b_file = b_file[-2]
-        b_file = b_file.split('/')
-        b_file = b_file[-1]
-        file_name = args.folder+"/"+str(args.device_type)+"_"+b_file+".json"
+    data = dict()
+    b_file = args.qasm.split('.')
+    b_file = b_file[-2]
+    b_file = b_file.split('/')
+    b_file = b_file[-1]
+    file_name = args.folder+"/"+str(args.device_type)+"_"+b_file+".json"
 
-        mode = "normal"
-        if args.tran:
-            mode = "transition"
-        result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.encoding, args.use_sabre_mapping)
-        data["device"] = str(args.device)
-        data["mode"] = mode
-        data["depth"] = result[0]
-        data["gate_spec"] = result[1]
-        data["gate"] = result[2]
-        data["final_mapping"] = result[3]
-        data["initial_mapping"] = result[4]
-        
-        with open(file_name, 'w') as file_object:
-            json.dump(data, file_object, default=int)
+    mode = "normal"
+    if args.tran:
+        mode = "transition"
+    result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.encoding, args.use_sabre_mapping)
+    data["device"] = str(args.device)
+    data["mode"] = mode
+    data["depth"] = result[0]
+    data["gate_spec"] = result[1]
+    data["gate"] = result[2]
+    data["final_mapping"] = result[3]
+    data["initial_mapping"] = result[4]
+    
+    with open(file_name, 'w') as file_object:
+        json.dump(data, file_object, default=int)
     
