@@ -3,8 +3,8 @@ import networkx
 from cirq.contrib.qasm_import import circuit_from_qasm
 from cirq import NamedQubit
 
-from olsq.device import qcdevice
-from olsq.olsq_cirq import OLSQ_cirq
+from pyolsq.device import qcdevice
+from pyolsq.olsq_cirq import OLSQ_cirq
 
 circuit = circuit_from_qasm("""OPENQASM 2.0;
                                include "qelib1.inc";

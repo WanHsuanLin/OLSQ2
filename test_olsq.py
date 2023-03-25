@@ -1,7 +1,7 @@
 import pytest
 
-from olsq.device import qcdevice
-from olsq import OLSQ
+from pyolsq.device import qcdevice
+from pyolsq import OLSQ
 
 circuit_str = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[3];\nh q[2];\n" \
               "cx q[1], q[2];\ntdg q[2];\ncx q[0], q[2];\nt q[2];\n" \

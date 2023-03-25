@@ -2,8 +2,8 @@ import pytest
 from qiskit import IBMQ
 from qiskit import QuantumCircuit
 
-from olsq.device import qcdevice
-from olsq.olsq_qiskit import OLSQ_qiskit
+from pyolsq.device import qcdevice
+from pyolsq.olsq_qiskit import OLSQ_qiskit
 
 circuit_str = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[3];\nh q[2];\n" \
               "cx q[1], q[2];\ntdg q[2];\ncx q[0], q[2];\nt q[2];\n" \

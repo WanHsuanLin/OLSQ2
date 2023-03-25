@@ -1,12 +1,14 @@
 import argparse
-from unittest import result
-from olsq.device import qcdevice
-from olsq import OLSQ
 import json
 import timeit
+import os
+import sys
+sys.path.append(os.getcwd())
+sys.path.insert(0, '/Users/wanhsuan/Desktop/Github/OLSQ-dev/build')
+from src.pyolsq.apiPy import createCircuit, createDevice, useSabre, setPlanBySabre
+from olsqPy import Device, OLSQ, LayoutSynthesizer
 
-
-def get_nnGrid(n: int, swap_duration):
+def get_nnGrid(n: int):
     my_coupling = []
     for i in range(n):
         for j in range(n):
@@ -14,11 +16,11 @@ def get_nnGrid(n: int, swap_duration):
                 my_coupling.append((i*n +j,i*n +j+1))
             if i < n-1:
                 my_coupling.append((i*n +j,i*n +j+n))
-   
-    return qcdevice(name="grid", nqubits=n*n,
-        connection=my_coupling, swap_duration=swap_duration)
+    device = createDevice(name="grid", nqubits=n*n, connection=my_coupling)
+    device.printDevice()
+    return my_coupling, device
 
-def get_device_by_name(name, swap_duration):
+def get_device_by_name(name):
     device_set_edge = { "qx" : [(0,2), (0,1), (1,2), (2,3), (2,4), (3,4)],
                         "ourense": [(0, 1), (1, 2), (1, 3), (3, 4)],
                        "sycamore": [(0, 6), (1, 6), (1, 7), (2, 7), (2, 8), (3, 8), (3, 9), (4, 9), (4, 10), (5, 10), (5, 11),
@@ -71,17 +73,32 @@ def get_device_by_name(name, swap_duration):
                        "tokyo": 20,
                        "aspen-4": 16,
                        "eagle": 127}
-    
-    device = qcdevice(name=name, nqubits=device_set_qubit_num[name],
-                        connection=device_set_edge[name], swap_duration=swap_duration)
-    return device
 
-def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, encoding, use_sabre_mapping, swap_bound = -1, thread = 1):
-    lsqc_solver = OLSQ(obj_is_swap = obj_is_swap, mode=mode, encoding = encoding, swap_up_bound=swap_bound, thread = thread)
-    lsqc_solver.setprogram(circuit_info)
-    lsqc_solver.setdevice(device)
+    device = createDevice(name=name, nqubits=device_set_qubit_num[name],
+                        connection=device_set_edge[name])
+    device.printDevice()
+    return device_set_edge[name], device
+
+def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_transition, obj_is_swap, use_sabre, swap_duration):
+    circuit = createCircuit(filename, circuit_info)
+    circuit.printCircuit()
+    lsqc_solver = LayoutSynthesizer(circuit, device)
+    lsqc_solver.setSwapDuration(swap_duration)
+    if mode_is_transition:
+        lsqc_solver.initializeTransitionMode()
+    else:
+        lsqc_solver.initializeNormalMode()
+    if obj_is_swap:
+        lsqc_solver.setOptimizeForSwap()
+    if use_sabre:
+        useSabre(True, False, lsqc_solver, circuit, device.nQubit(), connection, circuit_info, True)
     start = timeit.default_timer()
-    result = lsqc_solver.solve(use_sabre, output_mode="IR", memory_max_size=0, verbose=0)
+    b_file = filename.split('.')
+    b_file = b_file[-2]
+    b_file = b_file.split('/')
+    b_file = b_file[-1]
+    filename = b_file + ".out"
+    result = lsqc_solver.run()
     stop = timeit.default_timer()
     print('Time: ', stop - start)  
     return result
@@ -107,22 +124,18 @@ if __name__ == "__main__":
         help="qaoa or others")
     parser.add_argument("--qf", dest="qasm", type=str,
         help="Input file name")
-    parser.add_argument("--encoding", dest="encoding", type=int, default=1,
-        help="seqcounter  = 1, sortnetwrk  = 2, cardnetwrk  = 3, totalizer   = 6, mtotalizer  = 7. kmtotalizer = 8, native = 9")
+    # parser.add_argument("--encoding", dest="encoding", type=int, default=1,
+    #     help="seqcounter  = 1, sortnetwrk  = 2, cardnetwrk  = 3, totalizer   = 6, mtotalizer  = 7. kmtotalizer = 8, native = 9")
     parser.add_argument("--sabre", action='store_true', default=False,
         help="Use sabre to get SWAP upper bound")
     parser.add_argument("--tran", action='store_true', default=False,
         help="Use TB-OLSQ")
     parser.add_argument("--swap", action='store_true', default=False,
         help="Optimize SWAP")
-    parser.add_argument("--dump", action='store_true', default=False,
-        help="Only dump constraint")
-    parser.add_argument("--test_sabre", action='store_true', default=False,
-        help="test sabre scalability")
-    parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
-        help="user define swap bound")
-    parser.add_argument("--use_sabre_mapping", action='store_true', default=False,
-        help="test sabre scalability")
+    # parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
+    #     help="user define swap bound")
+    # parser.add_argument("--thread", dest="thread", type=int, default=-1,
+    #     help="number of thread used for SWAP optimization")
     # Read arguments from command line
     args = parser.parse_args()
 
@@ -130,41 +143,17 @@ if __name__ == "__main__":
         swap_duration = 1
     else:
         swap_duration = 3
+
     circuit_info = open(args.qasm, "r").read()
+    
     if args.device_type == "grid":
-        device = get_nnGrid(args.device, swap_duration)
+        connection, device = get_nnGrid(args.device)
     else:
-        device = get_device_by_name(args.device_type, swap_duration)
+        connection, device = get_device_by_name(args.device_type)
 
-    if args.dump:
-        dump_olsq(args.swap, circuit_info, device, args.folder, args.encoding)
-    elif args.test_sabre:
-        import datetime
-        from olsq.run_h_compiler import run_sabre
-        start_time = datetime.datetime.now()
-        swap_num, depth, _ = run_sabre(args.benchmark, circuit_info, device.list_qubit_edge, device.count_physical_qubit)
-        print("Run heuristic compiler sabre to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
-        print("Heuristic optimization time = {}".format(datetime.datetime.now() - start_time))
-    else:
-        data = dict()
-        b_file = args.qasm.split('.')
-        b_file = b_file[-2]
-        b_file = b_file.split('/')
-        b_file = b_file[-1]
-        file_name = args.folder+"/"+str(args.device_type)+"_"+b_file+".json"
+    data = dict()
+    
 
-        mode = "normal"
-        if args.tran:
-            mode = "transition"
-        result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.encoding, args.use_sabre_mapping)
-        data["device"] = str(args.device)
-        data["mode"] = mode
-        data["depth"] = result[0]
-        data["gate_spec"] = result[1]
-        data["gate"] = result[2]
-        data["final_mapping"] = result[3]
-        data["initial_mapping"] = result[4]
-        
-        with open(file_name, 'w') as file_object:
-            json.dump(data, file_object, default=int)
+    run_olsq_tbolsq(args.qasm, circuit_info, device, connection, args.tran, args.swap, args.sabre, swap_duration)
+    
     
