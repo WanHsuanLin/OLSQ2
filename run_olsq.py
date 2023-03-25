@@ -4,8 +4,8 @@ import timeit
 import os
 import sys
 sys.path.append(os.getcwd())
-sys.path.insert(0, '/Users/wanhsuan/Desktop/Github/OLSQ-dev/build')
-from src.pyolsq.apiPy import createCircuit, createDevice, useSabre, setPlanBySabre
+sys.path.insert(0, os.getcwd()+'/build')
+from src.pyolsq.apiPy import createCircuit, createDevice, useSabre
 from olsqPy import Device, OLSQ, LayoutSynthesizer
 
 def get_nnGrid(n: int):
@@ -102,13 +102,6 @@ def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_
     stop = timeit.default_timer()
     print('Time: ', stop - start)  
     return result
-
-def dump_olsq(obj_is_swap, circuit_info, device, folder, encoding):
-    lsqc_solver = OLSQ(obj_is_swap = obj_is_swap, mode="normal", encoding = encoding)
-    lsqc_solver.setprogram(circuit_info)
-    lsqc_solver.setdevice(device)
-    lsqc_solver.dump(folder)
-    return
 
 if __name__ == "__main__":
     # Initialize parser

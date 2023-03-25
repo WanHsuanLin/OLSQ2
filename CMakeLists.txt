@@ -33,22 +33,27 @@ set(API
    src/api/apiPy.cpp
  )
 
-include_directories("/home/wanhsuan/OLSQ-dev/include/pybind11/include")
 
 target_include_directories(olsq PUBLIC src include)
 
 find_package(PythonInterp REQUIRED)
 include_directories(${PYTHON_INCLUDE_DIRS})
-# find_package(Python 3.6 COMPONENTS Interpreter Development REQUIRED)
-# find_package(pybind11 CONFIG REQUIRED)
-# find_package(pybind11 REQUIRED)
+
+# Find pybind11
+if (PYBIND11_DIR)
+  set(PYBIND11_ROOT_DIR ${PYBIND11_DIR})
+else()
+  set(PYBIND11_ROOT_DIR $ENV{PYBIND11_DIR})
+endif()
+message(STATUS "Find Pybind11: ${PYBIND11_ROOT_DIR}")
+unset(PYBIND11_DIR)
+# include_directories(${PYBIND11_ROOT_DIR})
+# add_subdirectory(${PYBIND11_ROOT_DIR} "./pybind11")
+include_directories("${PYBIND11_ROOT_DIR}/include")
 add_subdirectory("include/pybind11")
 set(PYBIND11_CPP_STANDARD -std=c++14)
 
 find_package(Z3 REQUIRED CONFIG)
-set(Z3_DIR "/home/wanhsuan/z3/build")
-set(PYBIND11_DIR "/home/wanhsuan/OLSQ-dev/include/pybind11")
-find_package(Python REQUIRED COMPONENTS Development)
 
 target_link_libraries(olsq PUBLIC z3::libz3 Python::Python)
 
@@ -59,3 +64,5 @@ target_link_libraries(main olsq)
 pybind11_add_module(olsqPy ${SRC} ${API})
 target_include_directories(olsqPy PUBLIC src)
 target_link_libraries(olsqPy PUBLIC z3::libz3)
+
+# cmake .. -DPYBIND11_DIR=<Path_to_pybind11> -DZ3_DIR=<Path_to_z3_build>
