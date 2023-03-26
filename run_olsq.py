@@ -107,7 +107,7 @@ if __name__ == "__main__":
         help="Optimize SWAP")
     parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
         help="user define swap bound")
-    parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=-1,
+    parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=1,
         help="swap duration")
     # Read arguments from command line
 
