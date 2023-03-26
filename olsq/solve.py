@@ -1079,8 +1079,8 @@ class OLSQ:
 
     def get_swap_upper_bound(self, heuristic = "sabre"):
         if heuristic == "sabre":
-            swap_num, depth, initial_mapping = run_sabre("olsq", self.list_gate_qubits, self.list_qubit_edge, self.count_physical_qubit)
+            swap_num, depth = run_sabre(self.list_gate_qubits, self.list_qubit_edge, self.count_physical_qubit)
             print("Run heuristic compiler sabre to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
         else:
             raise TypeError("Only support sabre.")
-        return swap_num, depth, initial_mapping
+        return swap_num, depth
