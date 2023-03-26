@@ -432,9 +432,9 @@ class OLSQ:
             # Mapping Transformations by SWAP Gates.
             self._add_transformation_constraints(bound_depth, lsqc, sigma, pi)
             if self.mode == Mode.transition:
-                not_solved, model = self._optimize_circuit_tran(tight_bound_depth, lsqc , time, sigma, count_gate, bound_depth, use_sabre)
+                not_solved, model = self._optimize_circuit_tran(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre)
             else:
-                not_solved, model = self._optimize_circuit_normal(tight_bound_depth, lsqc , time, sigma, count_gate, bound_depth, use_sabre)
+                not_solved, model = self._optimize_circuit_normal(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre)
             if not_solved:
                 tight_bound_depth = bound_depth
                 bound_depth = max(2*bound_depth, max_depth)
@@ -666,39 +666,7 @@ class OLSQ:
                     n_swap += 1
         return n_swap
 
-    def _optimize_circuit_tran_swap_opt(self, lsqc, time, sigma, count_gate, bound_depth):
-        tight_bound_depth = bound_depth - 1
-        not_solved = True
-        # incremental solving use pop and push
-
-        length = int(math.log2(bound_depth))+1
-        bit_tight_bound_depth = None
-        while not_solved:
-            bit_tight_bound_depth = BitVecVal(tight_bound_depth, length)
-            print("Trying maximal swap = {}...".format(tight_bound_depth))
-            start_time = datetime.datetime.now()
-            # for depth optimization
-            satisfiable = lsqc.check([UGE(bit_tight_bound_depth, time[l]) for l in range(count_gate)])
-            print("status:{}, Depth optimization time = {}.".format(satisfiable, datetime.datetime.now() - start_time))
-            if satisfiable == sat:
-                model = lsqc.model()
-                n_swap = self._count_swap(model, sigma, tight_bound_depth)
-                tight_bound_depth = min(tight_bound_depth-1, n_swap)
-                # print("Find minimal depth {} with swap num {}".format(tight_bound_depth, model[count_swap].as_long()))
-            else:
-                start_time = datetime.datetime.now()
-                satisfiable = lsqc.check([UGE(tight_bound_depth+1, time[l]) for l in range(count_gate)])
-                print("status:{}, Depth optimization time = {}.".format(satisfiable, datetime.datetime.now() - start_time))
-                print("Find minimal swap num {}".format(tight_bound_depth+1))
-                not_solved = False
-        if not_solved:
-            return True, None, None
-        
-        stats = lsqc.statistics()
-        
-        return not_solved, model
-
-    def _optimize_circuit_tran(self, tight_bound_depth, lsqc, time, sigma, count_gate, bound_depth, use_sabre):
+    def _optimize_circuit_tran(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre):
         if use_sabre:
             swap_sabre = self.swap_sabre
             if swap_sabre > 0:
@@ -764,6 +732,7 @@ class OLSQ:
                 # cur_swap = model[count_swap].as_long()
                 cur_swap = self._count_swap(model, sigma, tight_bound_depth)
                 # print(cur_swap, lower_b_swap)
+                result = self._extract_results(model, time, pi, sigma, "qasm", "intermediate_result_swap_count_{}.qasm".format(cur_swap))
                 if cur_swap > lower_b_swap:
                     upper_b_swap = cur_swap
                     if use_sabre:
@@ -796,7 +765,7 @@ class OLSQ:
         return not_solved, model
     
 
-    def _optimize_circuit_normal(self, tight_bound_depth, lsqc, time, sigma, count_gate, bound_depth, use_sabre):
+    def _optimize_circuit_normal(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre):
         if use_sabre:
             swap_sabre = self.swap_sabre
             if swap_sabre > 0:
@@ -869,6 +838,7 @@ class OLSQ:
                 model = lsqc.model()
                 # cur_swap = model[count_swap].as_long()
                 cur_swap = self._count_swap(model, sigma, tight_bound_depth)
+                result = self._extract_results(model, time, pi, sigma, "qasm", "intermediate_result_swap_count_{}.qasm".format(cur_swap))
                 # print(cur_swap, lower_b_swap)
                 if cur_swap > lower_b_swap:
                     upper_b_swap = cur_swap
