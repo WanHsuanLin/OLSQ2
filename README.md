@@ -52,7 +52,6 @@ lsqc_solver.setdevice( qcdevice(name="dev", nqubits=5,
 ## Setting the Input Program
 
 Apart from the device, we need the quantum program/circuit to execute, which can be set with the `setprogram` method.
-_To be safe, always set the device first and then the program._
 
 OLSQ has an intermediate representation (IR) of quantum programs. (For details, refer to [a later part](#olsq-ir) of this tutorial.)
 In general, there are four ways to set the program: 
@@ -172,8 +171,9 @@ If in the `solve` method, `output_mode` is set to `"IR"`, the return is a tuple 
 
 run_olsq.py is an example program to use OLSQ2/TB-OLSQ2 to perform layout synthesis.
 ```
-# compile an qaoa circuit on a 5-by-5 grid quantum device by TB-OLSQ2 using swap as objective and SABRE's result for the starting point of optimization. The output IR file will be store in the current directory
-python3 run_olsq.py --dt grid --d 4 --f . --qf benchmark/qaoa/qaoa_16_0.qasm --swap --sabre --tran
+# compile an qaoa circuit on a 5-by-5 grid quantum device by TB-OLSQ2 using swap as objective and SABRE's result for the starting point of optimization. The output IR file will be store in example/.
+python3 run_olsq.py --dt grid --d 4 --f example/ --qf benchmark/qaoa/qaoa_16_0.qasm --swap --sabre --tran
+# The output files (Final IR output file and the intermediate qasm file) of running the command are in example/.
 
 # compile an qaoa circuit on sycamore quantum device by TB-OLSQ2 using swap as objective and store the output IR file in the current directory
 python3 run_olsq.py --dt sycamore --f . --qf benchmark/qaoa/qaoa_16_0.qasm --tran
