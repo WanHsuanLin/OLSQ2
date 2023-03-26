@@ -969,9 +969,10 @@ class OLSQ:
                     real_depth = tmp_depth + 1
             result_depth = real_depth
             list_result_swap = list_real_swap
+            result_time = real_time
             # print(list_result_swap)
         else:
-            real_time = result_time
+            real_time = result_depth
 
         print(f"result- additional SWAP count = {len(list_result_swap)}.")
         print(f"result- circuit depth = {result_depth}.")
