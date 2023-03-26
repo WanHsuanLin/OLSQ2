@@ -90,13 +90,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Adding optional argument
     parser.add_argument("--dt", dest='device_type', type=str,
-        help="grid or heavy-hexagon or ring")
+        help="grid, ourense, sycamore, rochester, tokyo, aspen-4, or eagle")
     parser.add_argument("--d", dest='device', type=int,
         help="device (x-by-x grid)")
-    parser.add_argument("--f", dest='folder', type=str,
+    parser.add_argument("--f", dest='folder', type=str, default='.',
         help="the folder to store results")
-    parser.add_argument("--b", dest='benchmark', type=str,
-        help="qaoa or others")
     parser.add_argument("--qf", dest="qasm", type=str,
         help="Input file name")
     parser.add_argument("--encoding", dest="encoding", type=int, default=1,
@@ -109,18 +107,17 @@ if __name__ == "__main__":
         help="Optimize SWAP")
     parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
         help="user define swap bound")
+    parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=-1,
+        help="swap duration")
     # Read arguments from command line
+
     args = parser.parse_args()
 
-    if args.benchmark == "qaoa":
-        swap_duration = 1
-    else:
-        swap_duration = 3
     circuit_info = open(args.qasm, "r").read()
     if args.device_type == "grid":
-        device = get_nnGrid(args.device, swap_duration)
+        device = get_nnGrid(args.device, args.swap_duration)
     else:
-        device = get_device_by_name(args.device_type, swap_duration)
+        device = get_device_by_name(args.device_type, args.swap_duration)
 
     data = dict()
     b_file = args.qasm.split('.')

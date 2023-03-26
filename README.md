@@ -33,7 +33,7 @@ lsqc_solver = OLSQ("depth", "normal")
 There are four argument in the constructor of OLSQ: `obj_is_swap`, `mode`, `encoding`, and `swap_up_bound`.
 - `obj_is_swap`: `True` to set SWAP count as objective or `False` to set depth as objective.
 - `mode`:  `"normal"` or `"transition"`. The latter stands for TB-OLSQ in the paper, which is usually much faster with little loss of optimality.
-- `encoding`: Different strategies for [pySAT](https://pysathq.github.io/docs/html/api/card.html#pysat.card.CardEnc) to encode cardinality constraint by CNF. Options: `1`, `2`, `3`, `6`, `7` and `8`.
+- `encoding`: Different strategies for [pySAT](https://pysathq.github.io/docs/html/api/card.html#pysat.card.CardEnc) to encode cardinality constraint by CNF. Options: `1`, `2`, `3`, `6`, `7`, `8` and `9`.
 - `swap_up_bound`:  Users can specify the starting point for SWAP optimization.
 
 ## Setting the device
@@ -167,6 +167,28 @@ If in the `solve` method, `output_mode` is set to `"IR"`, the return is a tuple 
 3. `list_scheduled_gate_qubits`: similar to `gates` in the IR
 4. `final_mapping`
 5. `objective_value`
+
+## Example: run_olsq.py
+
+run_olsq.py is an example program to use OLSQ2/TB-OLSQ2 to perform layout synthesis.
+```
+# compile an qaoa circuit on a 5-by-5 grid quantum device and store the output IR file in the current directory
+python3 run_olsq.py --dt grid --d 5 --f . --qf benchmark/qaoa/qaoa_16_0.qasm 
+
+# compile an qaoa circuit on sycamore quantum device and store the output IR file in the current directory
+python3 run_olsq.py --dt sycamore --f . --qf benchmark/qaoa/qaoa_16_0.qasm 
+```
+- `--tran`: Use TB-OLSQ2.
+- `--swap`: Set SWAP count as objective.
+- `--dt $(str)`: Type of the quantum device: ourense, sycamore, rochester, tokyo, aspen-4, eagle, or grid. When using a grid architecure, add `--d $(int)` to specify the grid length.
+- `--d $(int)`: Grid length of the grid architecture
+- `--qasm $(str)`: Input QASM file name
+- `--f $(str)`: The location to stroe the output IR file. Default: current directory
+- `--swap_duration $(int)`: SWAP duration. Default: 1 
+- `--sabre`: Use sabre to get SWAP upper bound
+- `--encoding $(int)`: Different encoding strategies to convert cardinality constraint to CNF. seqcounter = 1, sortnetwrk  = 2, cardnetwrk = 3, totalizer = 6, mtotalizer = 7. kmtotalizer = 8, native = 9
+- `--swap_bound $(int)`: Specify user-defined SWAP count upper bound for SWAP optimization
+
 
 ## BibTeX Citation
 ```
