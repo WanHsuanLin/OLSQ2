@@ -31,7 +31,7 @@ lsqc_solver = OLSQ("depth", "normal")
 ```
 
 There are four argument in the constructor of OLSQ: `obj_is_swap`, `mode`, `encoding`, and `swap_up_bound`.
-- `obj_is_swap`: `True` to set SWAP count as objective or `False` to set depth as objective.
+- `obj_is_swap`: `True` to set SWAP count as objective or `False` to set depth as objective. When optimizing SWAP count, OLSQ2 will save each intermediate compilation result to a qasm file with the name "intermediate_result_swap_count_{SWAP_COUNT}.qasm"
 - `mode`:  `"normal"` or `"transition"`. The latter stands for TB-OLSQ in the paper, which is usually much faster with little loss of optimality.
 - `encoding`: Different strategies for [pySAT](https://pysathq.github.io/docs/html/api/card.html#pysat.card.CardEnc) to encode cardinality constraint by CNF. Options: `1`, `2`, `3`, `6`, `7`, `8` and `9`.
 - `swap_up_bound`:  Users can specify the starting point for SWAP optimization.
