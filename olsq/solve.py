@@ -398,7 +398,7 @@ class OLSQ:
             tight_bound_depth = self.bound_depth
             bound_depth = int(1.5 * self.bound_depth)
         # bound_depth = 21
-        if 
+        
         self.swap_sabre, max_depth = self.get_swap_upper_bound()
         # return
 
