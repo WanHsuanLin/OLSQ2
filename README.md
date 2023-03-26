@@ -172,10 +172,10 @@ If in the `solve` method, `output_mode` is set to `"IR"`, the return is a tuple 
 
 run_olsq.py is an example program to use OLSQ2/TB-OLSQ2 to perform layout synthesis.
 ```
-# compile an qaoa circuit on a 5-by-5 grid quantum device and store the output IR file in the current directory
-python3 run_olsq.py --dt grid --d 5 --f . --qf benchmark/qaoa/qaoa_16_0.qasm 
+# compile an qaoa circuit on a 5-by-5 grid quantum device by OLSQ2 using swap as objective and store the output IR file in the current directory
+python3 run_olsq.py --dt grid --d 5 --f . --qf benchmark/qaoa/qaoa_16_0.qasm --swap
 
-# compile an qaoa circuit on sycamore quantum device and store the output IR file in the current directory
+# compile an qaoa circuit on sycamore quantum device by OLSQ2 using swap as objective and store the output IR file in the current directory
 python3 run_olsq.py --dt sycamore --f . --qf benchmark/qaoa/qaoa_16_0.qasm 
 ```
 - `--tran`: Use TB-OLSQ2.

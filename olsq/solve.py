@@ -398,6 +398,7 @@ class OLSQ:
             tight_bound_depth = self.bound_depth
             bound_depth = int(1.5 * self.bound_depth)
         # bound_depth = 21
+        if 
         self.swap_sabre, max_depth = self.get_swap_upper_bound()
         # return
 
@@ -871,10 +872,11 @@ class OLSQ:
                 # print(cur_swap, lower_b_swap)
                 if cur_swap > lower_b_swap:
                     upper_b_swap = cur_swap
-                    if use_sabre:
-                        bound_swap_num = upper_b_swap - 1
-                    else:
-                        bound_swap_num = (upper_b_swap + lower_b_swap) // 2
+                    bound_swap_num = upper_b_swap - 1
+                    # if use_sabre:
+                    #     bound_swap_num = upper_b_swap - 1
+                    # else:
+                    #     bound_swap_num = (upper_b_swap + lower_b_swap) // 2
                 else: 
                     find_min_swap = True
                     not_solved = False
