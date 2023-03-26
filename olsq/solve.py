@@ -398,7 +398,7 @@ class OLSQ:
             tight_bound_depth = self.bound_depth
             bound_depth = int(1.5 * self.bound_depth)
         # bound_depth = 21
-        self.swap_sabre, max_depth, initial_mapping = self.get_swap_upper_bound()
+        self.swap_sabre, max_depth = self.get_swap_upper_bound()
         # return
 
         while not_solved:
@@ -413,7 +413,7 @@ class OLSQ:
             # set_option("timeout", TIMEOUT)
 
             # constraint setting
-            self._add_injective_mapping_constraints(bound_depth, pi, lsqc, initial_mapping)
+            self._add_injective_mapping_constraints(bound_depth, pi, lsqc)
 
             # Consistency between Mapping and Space Coordinates.
             self._add_consistency_gate_constraints(bound_depth, pi, time, lsqc)
@@ -466,14 +466,9 @@ class OLSQ:
 
         return pi, time, sigma
 
-    def _add_injective_mapping_constraints(self, bound_depth, pi, model, initial_mapping = None):
+    def _add_injective_mapping_constraints(self, bound_depth, pi, model):
         # Injective Mapping
-        t_begin = 0
-        if self.use_sabre_mapping:
-            t_begin = 1
-            for m in range(self.count_program_qubit):
-                model.add(UGE(pi[m][0], initial_mapping[m]))
-        for t in range(t_begin, bound_depth):
+        for t in range(0, bound_depth):
             # model.add(Distinct([pi[m][t] for m in range(self.count_program_qubit)]))
             for m in range(self.count_program_qubit):
                 model.add(UGE(pi[m][t], 0))
