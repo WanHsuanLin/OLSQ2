@@ -4,9 +4,9 @@
 
 Many quantum computers have constraints on the connections between qubits.
 However, a quantum program may not conform to these constraints.
-Thus, it is necessary to perform 'layout synthesis for quantum computing', LSQC, which transforms quantum programs prior to execution so that the connectivity issues are resolved.
+Thus, it is necessary to perform 'quantum layout synthesis', QLS, which transforms quantum programs prior to execution so that the connectivity issues are resolved.
 
-OLSQ2 can solve LSQC optimally with respect to depth and number of SWAP gates.
+OLSQ2 can solve QLS optimally with respect to depth and number of SWAP gates.
 There is also a transition-based mode (TB) to speed it up with little loss of optimality.
 
 For more details on the theory and the experiments, please refer to [the paper]().
@@ -27,7 +27,7 @@ To reproduce the results reported in [the paper](), please install `z3-solver` w
 from olsq import OLSQ
 
 # initiate olsq with depth as objective, in normal mode
-lsqc_solver = OLSQ("depth", "normal")
+qlc_solver = OLSQ("depth", "normal")
 ```
 
 There are four argument in the constructor of OLSQ: `obj_is_swap`, `mode`, `encoding`, and `swap_up_bound`.
@@ -38,7 +38,7 @@ There are four argument in the constructor of OLSQ: `obj_is_swap`, `mode`, `enco
 
 ## Setting the device
 
-To perform LSQC, we need to know the connections between the qubits, which is information about the physical device.
+To perform QLS, we need to know the connections between the qubits, which is information about the physical device.
 We are going to use the `setdevice` method by directly construct a device with some properties.
 
 ```
@@ -97,7 +97,7 @@ However, there are no such triangles on device `ourense`.
 This means that no matter how the qubits in the program are mapped to physical qubits, we need to insert SWAP gates.
 
 ```
-# solve LSQC
+# solve QLS
 result = lsqc_solver.solve()
 ```
 
@@ -114,7 +114,7 @@ If `output_file_name` is provided, then the QASM string would be written to that
 The result of the Toffoli example is shown below.
 Note that a SWAP gate, decomposed into three CX gates, has been inserted.
 ```
-# a LSQC solution to the Toffoli gate on device 'ourense'
+# a QLS solution to the Toffoli gate on device 'ourense'
 #                                                  ┌───┐     ┌───┐┌───┐ ┌───┐      ┌─┐      
 # q_0: ───────────────────■─────────────────────■──┤ X ├──■──┤ X ├┤ T ├─┤ H ├──────┤M├──────
 #      ┌───┐┌───┐┌─────┐┌─┴─┐┌───┐┌───┐┌─────┐┌─┴─┐└─┬─┘┌─┴─┐└─┬─┘└───┘ ├───┤      └╥┘┌─┐   
