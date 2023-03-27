@@ -171,7 +171,7 @@ If in the `solve` method, `output_mode` is set to `"IR"`, the return is a tuple 
 
 run_olsq.py is an example program to use OLSQ2/TB-OLSQ2 to perform layout synthesis.
 ```
-# compile an qaoa circuit on a 5-by-5 grid quantum device by TB-OLSQ2 using swap as objective and SABRE's result for the starting point of optimization. The output IR file will be store in example/.
+# compile an qaoa circuit on a 5-by-5 grid quantum device by TB-OLSQ2 using swap as objective and SABRE's result for the starting point of optimization. The output file is IR and will be store in example/.
 python3 run_olsq.py --dt grid --d 4 --f example/ --qf benchmark/qaoa/qaoa_16_0.qasm --swap --sabre --tran
 # The output files (Final IR output file and the intermediate qasm file) of running the command are in example/.
 
