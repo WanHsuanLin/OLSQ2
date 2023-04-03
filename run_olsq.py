@@ -80,7 +80,7 @@ def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, commute,
     lsqc_solver.setprogram(circuit_info)
     lsqc_solver.setdevice(device)
     start = timeit.default_timer()
-    result = lsqc_solver.solve(use_sabre, commute=commute output_mode="IR")
+    result = lsqc_solver.solve(use_sabre, commute=commute, output_mode="IR")
     stop = timeit.default_timer()
     print('Time: ', stop - start)  
     return result
