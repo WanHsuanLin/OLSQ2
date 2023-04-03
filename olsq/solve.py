@@ -322,7 +322,7 @@ class OLSQ:
         return
 
 
-    def solve(self, use_sabre, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE):
+    def solve(self, use_sabre, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE):
         """Formulate an SMT, pass it to z3 solver, and output results.
         CORE OF OLSQ, EDIT WITH CARE.
 
@@ -342,18 +342,18 @@ class OLSQ:
         """
         if self.count_physical_qubit < self.count_program_qubit:
             raise ValueError("[ERROR] number of physical qubits is less than number of program qubits")
-        self._preprocessing()
+        self._preprocessing(commute)
         if self.mode == Mode.transition:
             print("Using transition based mode...")
-            results = self._solve(use_sabre, output_mode, output_file_name, memory_max_size, verbose)
+            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose)
         elif self.mode == Mode.normal:
             print("Using normal mode...")
-            results = self._solve(use_sabre, output_mode, output_file_name, memory_max_size, verbose)
+            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose)
         else:
             raise ValueError( ("Wrong type") )
         return results 
 
-    def _preprocessing(self):
+    def _preprocessing(self, commute):
         if not self.input_dependency:
             self.list_gate_dependency = collision_extracting(self.list_gate_qubits)
         # list_adjacency_qubit takes in a physical qubit index _p_, and
@@ -376,7 +376,7 @@ class OLSQ:
             self.list_span_edge[list_qubit_edge[k][1]].append(k)
         
 
-    def _solve(self, use_sabre = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE):
+    def _solve(self, use_sabre = False, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE):
         
 
         # pre-processing
@@ -420,7 +420,7 @@ class OLSQ:
             self._add_consistency_gate_constraints(bound_depth, pi, time, lsqc)
             
             # Avoiding Collisions and Respecting Dependencies. 
-            self._add_dependency_constraints(lsqc, time, bound_depth)
+            self._add_dependency_constraints(lsqc, time, bound_depth, commute)
 
             # # No swap for t<s
             # # swap gates can not overlap with swap
@@ -486,11 +486,14 @@ class OLSQ:
                 model.add(Or(Not(time[l] == t), Or([Or(And(pi[list_gate_qubits[l][0]][t] == edge[0], pi[list_gate_qubits[l][1]][t] == edge[1]), \
                                 And(pi[list_gate_qubits[l][0]][t] == edge[1], pi[list_gate_qubits[l][1]][t] == edge[0])) for edge in self.list_qubit_edge ] )))
 
-    def _add_dependency_constraints(self, model, time, bound_depth):
+    def _add_dependency_constraints(self, model, time, bound_depth, commute):
         # list_gate_duration = self.list_gate_duration
         list_gate_dependency = self.list_gate_dependency
         count_gate = len(self.list_gate_qubits)
-        if self.mode == Mode.transition:
+        if commute:
+            for d in list_gate_dependency:
+                model.add(time[d[0]]!=time[d[1]])
+        elif self.mode == Mode.transition:
             for d in list_gate_dependency:
                 # lsqc.add(time[d[0]] <= time[d[1]])
                 model.add(ULE(time[d[0]],time[d[1]]))
