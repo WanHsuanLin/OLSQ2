@@ -490,24 +490,24 @@ class OLSQ:
         # list_gate_duration = self.list_gate_duration
         list_gate_dependency = self.list_gate_dependency
         count_gate = len(self.list_gate_qubits)
-        if commute:
+        # add initial condition for gates
+        for l in range(count_gate):
+             model.add(ULE(0, time[l]))
+        if commute and self.mode == Mode.normal:
             for d in list_gate_dependency:
                 model.add(time[d[0]]!=time[d[1]])
-        elif self.mode == Mode.transition:
-            for d in list_gate_dependency:
-                # lsqc.add(time[d[0]] <= time[d[1]])
-                model.add(ULE(time[d[0]],time[d[1]]))
-        else:
+        elif not commute and self.mode == Mode.normal:
             # length = int(math.log2(bound_depth))+1
             # bit_duration_list = [BitVecVal(list_gate_duration[l], length) for l in range(count_gate)]
             # bit_duration_minus_one_list = [BitVecVal(list_gate_duration[l]-1, length) for l in range(count_gate)]
-
             for d in list_gate_dependency:
                 model.add(ULT(time[d[0]], time[d[1]]))
-            # add initial condition for gates
-            for l in range(count_gate):
-                model.add(ULE(0, time[l]))
                 # model.add(ULE(bit_duration_minus_one_list[l], time[l]))
+        elif not commute and self.mode == Mode.transition:
+            for d in list_gate_dependency:
+                # lsqc.add(time[d[0]] <= time[d[1]])
+                model.add(ULE(time[d[0]],time[d[1]]))
+            
 
     def _add_swap_constraints(self, bound_depth, sigma, model, normal = False, time = None, pi = None):
         # if_overlap_edge takes in two edge indices _e_ and _e'_,
