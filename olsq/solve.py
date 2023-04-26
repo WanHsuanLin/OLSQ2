@@ -1,6 +1,6 @@
 import math
 import datetime
-from z3 import Bool, Implies, And, Or, sat, Solver, set_option, BitVec, ULT, ULE, UGE, BitVecVal, Not, Then, AtMost, Goal, BitVecNumRef, BoolRef
+from z3 import Bool, Implies, And, Or, sat, Solver, set_option, BitVec, ULT, ULE, UGE, BitVecVal, Not, Then, AtMost, Goal, BitVecNumRef, BoolRef, unsat
 from olsq.input import input_qasm
 from olsq.output import output_qasm
 from olsq.device import qcdevice
@@ -12,6 +12,7 @@ import timeit
 import multiprocessing as mp
 from time import sleep
 import queue
+import operator
 
 TIMEOUT = 90000
 # MEMORY_MAX_SIZE = 1000000000 * 58
@@ -35,16 +36,18 @@ class Mode(Enum):
     transition = 1
     normal = 2
 
-
 def var_name_fmt(kind):
   if kind == 'map':
     return 'map_q{}_t{}'
   elif kind == 'time':
     return 'time_{}'
-  elif kind == 'sigma':
+  elif kind == 'swap':
     return 'ifswap_e{}_t{}'
   else:
     raise RuntimeError(f'unexpected var kind: {kind}')
+
+def get_val(model, kind, *args):
+  return model[var_name_fmt(kind).format(*args)]
 
 def collision_extracting(list_gate_qubits):
     """Extract collision relations between the gates,
@@ -290,7 +293,7 @@ class OLSQ:
         """
         # bound_depth: generate constraints until t = bound_depth
         bound_depth = 21
-        print("start adding constraints...")
+        print("Adding constraints...")
         # variable setting 
         self._preprocessing()
         pi, time, sigma = self._construct_variable(bound_depth)
@@ -336,7 +339,7 @@ class OLSQ:
         return
 
 
-    def solve(self, use_sabre, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE, n_procs = 1):
+    def solve(self, use_sabre, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE, n_procs=1):
         """Formulate an SMT, pass it to z3 solver, and output results.
         CORE OF OLSQ, EDIT WITH CARE.
 
@@ -359,10 +362,10 @@ class OLSQ:
         self._preprocessing(commute)
         if self.mode == Mode.transition:
             print("Using transition based mode...")
-            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose, n_procs)
+            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose, n_procs=n_procs)
         elif self.mode == Mode.normal:
             print("Using normal mode...")
-            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose, n_procs)
+            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose, n_procs=n_procs)
         else:
             raise ValueError( ("Wrong type") )
         return results 
@@ -390,7 +393,7 @@ class OLSQ:
             self.list_span_edge[list_qubit_edge[k][1]].append(k)
         
 
-    def _solve(self, use_sabre = False, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE, n_procs = 1):
+    def _solve(self, use_sabre = False, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE, n_procs=1):
         
 
         # pre-processing
@@ -417,7 +420,6 @@ class OLSQ:
         # return
 
         while not_solved:
-            print("start adding constraints...")
             # variable setting 
             pi, time, sigma = self._construct_variable(bound_depth)
             # lsqc = Solver()
@@ -446,9 +448,9 @@ class OLSQ:
             # Mapping Transformations by SWAP Gates.
             self._add_transformation_constraints(bound_depth, lsqc, sigma, pi)
             if self.mode == Mode.transition:
-                not_solved, model = self._optimize_circuit_tran(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs)
+                not_solved, model = self._optimize_circuit_tran(tight_bound_depth, lsqc , pi, time, sigma, bound_depth, use_sabre, n_procs=n_procs)
             else:
-                not_solved, model = self._optimize_circuit_normal(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs)
+                not_solved, model = self._optimize_circuit_normal(tight_bound_depth, lsqc , pi, time, sigma, bound_depth, use_sabre, n_procs=n_procs)
             if not_solved:
                 tight_bound_depth = bound_depth
                 bound_depth = max(2*bound_depth, max_depth)
@@ -462,6 +464,7 @@ class OLSQ:
         return result
 
     def _construct_variable(self, bound_depth):
+        print("Creating variables...")
         # at cycle t, logical qubit q is mapped to pi[q][t]
         
         count_qubit_edge = len(self.list_qubit_edge)
@@ -476,12 +479,13 @@ class OLSQ:
         time = [BitVec(var_name_fmt('time').format(i), length) for i in range(len(self.list_gate_qubits))]
 
         # if at cycle t, a SWAP finishing on edge k, then sigma[k][t]=1
-        sigma = [[Bool(var_name_fmt('sigma').format(i, j))
+        sigma = [[Bool(var_name_fmt('swap').format(i, j))
             for j in range(bound_depth)] for i in range(count_qubit_edge)]
 
         return pi, time, sigma
 
     def _add_injective_mapping_constraints(self, bound_depth, pi, lsqc):
+        print('Adding injective mapping constraints...')
         # Injective Mapping
         for t in range(0, bound_depth):
             # lsqc.add(Distinct([pi[m][t] for m in range(self.count_program_qubit)]))
@@ -492,6 +496,7 @@ class OLSQ:
                     lsqc.add(pi[m][t] != pi[mm][t])
 
     def _add_consistency_gate_constraints(self, bound_depth, pi, time, lsqc):
+        print('Adding gate consistency constraints...')
         # Consistency between Mapping and Space Coordinates.
         list_gate_qubits = self.list_gate_qubits
         
@@ -501,6 +506,7 @@ class OLSQ:
                                 And(pi[list_gate_qubits[l][0]][t] == edge[1], pi[list_gate_qubits[l][1]][t] == edge[0])) for edge in self.list_qubit_edge ] )))
 
     def _add_dependency_constraints(self, lsqc, time, bound_depth, commute):
+        print('Adding dependency constraints...')
         # list_gate_duration = self.list_gate_duration
         list_gate_dependency = self.list_gate_dependency
         count_gate = len(self.list_gate_qubits)
@@ -524,6 +530,7 @@ class OLSQ:
                 # lsqc.add(ULE(bit_duration_minus_one_list[l], time[l]))
 
     def _add_swap_constraints(self, bound_depth, sigma, lsqc, normal = False, time = None, pi = None):
+        print('Adding SWAP constraints...')
         # if_overlap_edge takes in two edge indices _e_ and _e'_,
         # and returns whether or not they overlap
         list_qubit_edge = self.list_qubit_edge
@@ -603,6 +610,7 @@ class OLSQ:
 
      
     def _add_transformation_constraints(self, bound_depth, lsqc, sigma, pi):
+        print('Adding transformation constraints...')
         list_qubit_edge = self.list_qubit_edge
         count_qubit_edge = len(list_qubit_edge)
         list_span_edge = self.list_span_edge
@@ -626,6 +634,7 @@ class OLSQ:
                             pi[m][t + 1] == list_qubit_edge[k][0]))
            
     def _add_atmostk_cnf(self, lsqc, sigma, k, tight_bound_depth):
+        print('Adding AtMostK constraints...')
         from pysat.card import CardEnc
         num_sigma = 1+(tight_bound_depth+1)*len(self.list_qubit_edge)
         sigma_list = [i for i in range(1,num_sigma)]
@@ -679,11 +688,11 @@ class OLSQ:
         n_swap = 0
         for k in range(len(self.list_qubit_edge)):
             for t in range(result_depth):
-                if model[var_name_fmt('sigma').format(k, t)]:
+                if model[var_name_fmt('swap').format(k, t)]:
                     n_swap += 1
         return n_swap
 
-    def _optimize_circuit_tran(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs):
+    def _optimize_circuit_tran(self, tight_bound_depth, lsqc, pi, time, sigma, bound_depth, use_sabre, n_procs):
         if use_sabre:
             swap_sabre = self.swap_sabre
             if swap_sabre > 0:
@@ -696,6 +705,7 @@ class OLSQ:
         lower_b_swap = 0
         bound_swap_num = 0
         found_min_depth = False
+        count_gate = len(self.list_gate_qubits)
         # incremental solving use pop and push
 
         n_swap = -1
@@ -781,7 +791,7 @@ class OLSQ:
             lsqc.pop()
         return not_solved, model
     
-    def _optimize_circuit_normal(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs):
+    def _optimize_circuit_normal(self, tight_bound_depth, lsqc, pi, time, sigma, bound_depth, use_sabre, n_procs):
         if use_sabre:
             swap_sabre = self.swap_sabre
             if swap_sabre > 0:
@@ -795,93 +805,58 @@ class OLSQ:
         bound_swap_num = 0
         # incremental solving use pop and push
 
-        # setup multiprocessing
+        ######################
+        # depth optimization #
+        ######################
+
+        MAX_STEP = 10
+        self.bound_depth = bound_depth
+
+        # 1. quickly find any solution using large steps
         bounds = queue.Queue()
         n_bounds = 0
-        while tight_bound_depth <= bound_depth:
+        while tight_bound_depth <= self.bound_depth:
           bounds.put(tight_bound_depth)
           n_bounds += 1
           if tight_bound_depth > 100:
-            tight_bound_depth += 10
+            tight_bound_depth += MAX_STEP
           else:
             tight_bound_depth += 5
-        n_procs = min(n_procs, n_bounds)
-        q_down.extend([mp.Queue() for _ in range(n_procs)])
-        cur_bounds = [0 for _ in range(n_procs)]
-        LARGE_UNUSED_BOUND = bound_depth + 1
 
-        # for depth optimization
-        is_done = False
-        min_bound = min(cur_bounds)
-        with mp.Pool(n_procs) as p:
-          mp_results = []
-          for i in range(n_procs):
-            # note: z3py objects use ctypes with pointers, which cannot be pickled
-            mp_results.append(p.apply_async(mp_solve, (i, lsqc.sexpr(), bound_depth, count_gate)))
-            bound = bounds.get()
-            cur_bounds[i] = bound
-            q_down[i].put(bound) # len(bounds) guaranteed to be >= n_procs
+        print(f'Approximating optimal depth with min(n_procs={n_procs}, n_bounds={n_bounds}) processors...')
+        sat_res, model, tight_bound_depth = self._solve_parallel(
+          lsqc=lsqc, target_result=sat, n_procs=n_procs, 
+          bounds=bounds, unused_bound=self.bound_depth+1, wait_if=operator.gt
+        )
 
-          for i in range(n_procs):
-            print(f'mp_results[{i}]: {mp_results[i]}')
+        if sat_res != sat:
+          return True, None
 
-          while True:
-            for i in range(n_procs):
-              # ready := returned sat or MP_STOP_SIGNAL
-              if mp_results[i].ready():
-                sat_res, model, tight_bound_depth = mp_results[i].get()
-                if sat_res != MP_STOP_SIGNAL:
-                  print(f'process {i} is ready: {mp_results[i]}')
+        # 2. descend with step=1 to find the depth optimal solution
+        bounds = queue.Queue()
+        n_bounds = 0
 
-                  if sat_res == sat:
-                    # sat -> wait on procs with lower bound
-                    for j in range(n_procs):
-                      if cur_bounds[j] < cur_bounds[i]:
-                        print(f'process {i} waiting on {j} with bound={cur_bounds[j]}')
-                        break # for-2
-                    # there were none -> we found the lowest _from our input_
-                    else: # for-2
-                      print(f'process {i} found sat with bound={cur_bounds[i]}')
-                      p.terminate()
-                      p.join()
-                      break # for-1
-                  elif sat_res == unsat:
-                    pass
-                  else:
-                    raise RuntimeError('unexpected z3 result: {sat_res}')
-            else:
-              # nothing ready -> check if any procs requested more work
-              while not q_up.empty():
-                i = q_up.get()
-                print(f'sending {i} work')
-                if not bounds.empty():
-                  bound = bounds.get()
-                  cur_bounds[i] = bound
-                  q_down[i].put(bound)
-                else:
-                  print(f'sending MP_STOP_SIGNAL to {i}')
-                  if cur_bounds[i] != LARGE_UNUSED_BOUND:
-                    cur_bounds[i] = LARGE_UNUSED_BOUND
-                    q_down[i].put(MP_STOP_SIGNAL)
-                  break # while-2
+        for i in range(tight_bound_depth-1, max(1, tight_bound_depth-MAX_STEP), -1):
+          # note: this range excludes the next lower bound from the previous stage
+          #       since the previous stage returns the lowest submitted bound
+          bounds.put(i)
+          n_bounds += 1
 
-              if all(map(lambda b: b == LARGE_UNUSED_BOUND, cur_bounds)):
-                print("FAILED to find depth within {}.".format(bound_depth))
-                break # while-1
+        print(f'Minimizing depth with min(n_procs={n_procs}, n_bounds={n_bounds}) processors...')
+        sat_res2, model2, tight_bound_depth2 = self._solve_parallel(
+          lsqc=lsqc, target_result=unsat, n_procs=n_procs, 
+          bounds=bounds, unused_bound=0, wait_if=operator.lt
+        )
 
-              sleep(1)
-              continue # while-1
-
-            # only reachable from break after terminate
-            break # while-1
-
-        print(f'result: {sat_res}')
+        # update with optimal results
+        if sat_res2 == sat:
+          sat_res, model, tight_bound_depth = sat_res2, model2, tight_bound_depth2
 
         if sat_res == sat:
           n_swap = self._count_swap(model, sigma, tight_bound_depth)
           upper_b_swap = min(n_swap-1, upper_b_swap)
           bound_swap_num = upper_b_swap
-          print("Found minimal depth {} with swap num {}".format(tight_bound_depth, n_swap))
+          print("Found optimal depth {} with swap num {}".format(tight_bound_depth, n_swap))
         else:
           return True, None
 
@@ -890,7 +865,7 @@ class OLSQ:
 
         # stats = lsqc.statistics()
         # print(stats)
-        lsqc.add([UGE(bit_tight_bound_depth, time[l]) for l in range(count_gate)])
+        lsqc.add([UGE(bit_tight_bound_depth, time[l]) for l in range(len(self.list_gate_qubits))])
 
         # for swap optimization
         if n_swap == 0:
@@ -898,6 +873,7 @@ class OLSQ:
             not_solved = False
         else:
             find_min_swap = False
+
         while not find_min_swap:
             print("Bound of Trying min swap = {}...".format(bound_swap_num))
             start_time = datetime.datetime.now()
@@ -963,16 +939,15 @@ class OLSQ:
         result_time = []
         result_depth = 0
         for l in range(count_gate):
-            result_time.append(model[time[l]].as_long())
+            result_time.append(get_val(model, 'time', l))
             result_depth = max(result_depth, result_time[-1])
         result_depth += 1
         list_result_swap = []
         # print(m.evaluate(f(x)))
-        print(f'{len(sigma)}?{count_qubit_edge} {len(sigma[0])}?{result_depth}')
+        #print(f'{len(sigma)}?{count_qubit_edge} {len(sigma[0])}?{result_depth}')
         for k in range(count_qubit_edge):
             for t in range(result_depth):
-                print(k,t)
-                if model[sigma[k][t]]:
+                if get_val(model, 'swap', k, t):
                     list_result_swap.append((k, t))
                     print(f"SWAP on physical edge ({list_qubit_edge[k][0]},"\
                         + f"{list_qubit_edge[k][1]}) at time {t}")
@@ -980,21 +955,15 @@ class OLSQ:
             if len(list_gate_qubits[l]) == 1:
                 qq = list_gate_qubits[l][0]
                 tt = result_time[l]
-                # print(f"Gate {l}: {list_gate_name[l]} {qq} on qubit "\
-                #     + f"{model[pi[qq][tt]].as_long()} at time {tt}")
                 print(f"Gate {l}: {list_gate_name[l]} {qq} on qubit "\
-                    + f"{model.evaluate(pi[qq][tt])} at time {tt}")
+                    + f"{get_val(model, 'map', qq, tt)} at time {tt}")
             else:
                 qq = list_gate_qubits[l][0]
                 qqq = list_gate_qubits[l][1]
                 tt = result_time[l]
                 print(f"Gate {l}: {list_gate_name[l]} {qq}, {qqq} on qubits "\
-                    + f"{model[pi[qq][tt]].as_long()} and "\
-                    + f"{model[pi[qqq][tt]].as_long()} at time {tt}")
-                
-                # print(f"Gate {l}: {list_gate_name[l]} {qq}, {qqq} on qubits "\
-                #     + f"{model.evaluate(f_map(qq,tt))} and "\
-                #     + f"{model.evaluate(f_map(qqq,tt))} at time {tt}")
+                    + f"{get_val(model, 'map', qq, tt)} and "\
+                    + f"{get_val(model, 'map', qqq, tt)} at time {tt}")
         tran_detph = result_depth
 
         # transition based
@@ -1009,17 +978,14 @@ class OLSQ:
                     if result_time[tmp_gate] == block:
                         qubits = list_gate_qubits[tmp_gate]
                         if len(qubits) == 1:
-                            p0 = model[pi[qubits[0]][block]].as_long()
-                            # p0 = model[f_map(qubits[0],block)].as_long()
+                            p0 = get_val(model, 'map', qubits[0], block)
                             real_time[tmp_gate] = \
                                 list_depth_on_qubit[p0] + 1
                             list_depth_on_qubit[p0] = \
                                 real_time[tmp_gate]
                         else:
-                            p0 = model[pi[qubits[0]][block]].as_long()
-                            p1 = model[pi[qubits[1]][block]].as_long()
-                            # p0 = model.evaluate(f_map(qubits[0],block))
-                            # p1 = model.evalutae(f_map(qubits[1],block))
+                            p0 = get_val(model, 'map', qubits[0], block)
+                            p1 = get_val(model, 'map', qubits[1], block)
                             real_time[tmp_gate] = max(
                                 list_depth_on_qubit[p0],
                                 list_depth_on_qubit[p1]) + 1
@@ -1061,17 +1027,15 @@ class OLSQ:
             t = result_time[l]
             list_scheduled_gate_name[t].append(list_gate_name[l])
             if l in list_gate_single:
-                q = model[pi[list_gate_qubits[l][0]][result_time[l]]].as_long()
+                q = get_val(model, 'map', list_gate_qubits[l][0], result_time[l])
                 list_scheduled_gate_qubits[t].append((q,))
             elif l in list_gate_two:
                 [q0, q1] = list_gate_qubits[l]
                 tmp_t = t
                 if self.mode == Mode.transition:
-                    tmp_t = model[time[l]].as_long()
-                q0 = model[pi[q0][tmp_t]].as_long()
-                q1 = model[pi[q1][tmp_t]].as_long()
-                # q0 = model.evaluate(f_map(q0,tmp_t)).as_long()
-                # q1 = model.evaluate(f_map(q1,tmp_t)).as_long()
+                    tmp_t = get_val(model, 'time', l)
+                q0 = get_val(model, 'map', q0, tmp_t)
+                q1 = get_val(model, 'map', q1, tmp_t)
                 list_scheduled_gate_qubits[t].append((q0, q1))
             else:
                 raise ValueError("Expect single-qubit or two-qubit gate.")
@@ -1079,11 +1043,8 @@ class OLSQ:
         tmp_depth = result_depth - 1
         if self.mode == Mode.transition:
             tmp_depth = tran_detph - 1
-        final_mapping = [model[pi[m][tmp_depth]].as_long() for m in range(count_program_qubit)]
-        initial_mapping = [model[pi[m][0]].as_long() for m in range(count_program_qubit)]
-
-        # final_mapping = [model.evaluate(f_map(m,tmp_depth)).as_long() for m in range(count_program_qubit)]
-        # initial_mapping = [model.evaluate(f_map(m,0)).as_long() for m in range(count_program_qubit)]
+        final_mapping = [get_val(model, 'map', m, tmp_depth) for m in range(count_program_qubit)]
+        initial_mapping = [get_val(model, 'map', m, 0) for m in range(count_program_qubit)]
 
         for (k, t) in list_result_swap:
             q0 = list_qubit_edge[k][0]
@@ -1126,10 +1087,86 @@ class OLSQ:
     def get_swap_upper_bound(self, heuristic = "sabre"):
         if heuristic == "sabre":
             swap_num, depth = run_sabre(self.list_gate_qubits, self.list_qubit_edge, self.count_physical_qubit)
-            print("Run heuristic compiler sabre to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
+            print("Ran heuristic compiler sabre to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
         else:
             raise TypeError("Only support sabre.")
         return swap_num, depth
+
+    def _solve_parallel(self, lsqc, target_result, n_procs, bounds, unused_bound, wait_if):
+      q_down.clear()
+      q_down.extend([mp.Queue() for _ in range(n_procs)])
+      cur_bounds = [0 for _ in range(n_procs)]
+
+      with mp.Pool(n_procs) as p:
+        mp_results = []
+        for i in range(n_procs):
+          # note: z3py objects use ctypes with pointers, which cannot be pickled
+          mp_results.append(p.apply_async(mp_solve, 
+            (i, lsqc.sexpr(), target_result, self.bound_depth, len(self.list_gate_qubits))))
+          bound = bounds.get()
+          cur_bounds[i] = bound
+          q_down[i].put(bound) # len(bounds) guaranteed to be >= n_procs
+
+#          for i in range(n_procs):
+#            print(f'mp_results[{i}]: {mp_results[i]}')
+
+        ret = [None, None, self.bound_depth+1]
+        while True:
+          for i in range(n_procs):
+            # ready := returned sat or MP_STOP_SIGNAL
+            if mp_results[i].ready():
+              sat_res, model, tight_bound_depth = mp_results[i].get()
+              if sat_res != MP_STOP_SIGNAL:
+                print(f'process {i} is ready with bound={tight_bound_depth}')
+
+                # save results with the tightest bound
+                if sat_res == sat and tight_bound_depth < ret[2]:
+                  ret = [sat_res, model, tight_bound_depth]
+
+                if sat_res == target_result:
+                  # found target result -> wait on preceeding procs
+                  for j in range(n_procs):
+                    if wait_if(cur_bounds[i], cur_bounds[j]):
+                      print(f'process {i} waiting on {j} with bound={cur_bounds[j]}')
+                      break # for-2
+                  # there were none -> we found the lowest _from our input_
+                  else: # for-2
+                    print(f'process {i} found target={sat_res} with bound={cur_bounds[i]} (tight_bound_depth={tight_bound_depth})')
+                    p.terminate()
+                    p.join()
+                    break # for-1
+                elif sat_res == unknown:
+                  raise RuntimeError('unexpected z3.CheckSatResult: {res}')
+          else:
+            # nothing ready -> check if any procs requested more work
+            while not q_up.empty():
+              i = q_up.get()
+              print(f'sending {i} work')
+              if not bounds.empty():
+                bound = bounds.get()
+                cur_bounds[i] = bound
+                q_down[i].put(bound)
+              else:
+                print(f'sending MP_STOP_SIGNAL to {i}')
+                if cur_bounds[i] != unused_bound:
+                  cur_bounds[i] = unused_bound
+                  q_down[i].put(MP_STOP_SIGNAL)
+                break # while-2
+
+            if all(map(lambda b: b == unused_bound, cur_bounds)):
+              print("FAILED to find depth within {}.".format(self.bound_depth))
+              sat_res = unsat
+              model = None
+              tight_bound_depth = 0
+              break # while-1
+
+            sleep(1)
+            continue # while-1
+
+          # only reachable from break after terminate
+          break # while-1
+
+      return ret
 
 #################################
 # multiprocessing helpers begin #
@@ -1138,9 +1175,9 @@ MP_STOP_SIGNAL = -1
 q_up = mp.Queue()
 q_down = []
 
-def mp_solve(tid, lsqc_sexpr, bound_depth, count_gate):
+def mp_solve(tid, lsqc_sexpr, target_result, bound_depth, count_gate):
   # note: z3py objects use ctypes with pointers, which cannot be pickled
-  print(f'mp_solve({q_down[tid]}, {q_up}, {tid}, lsqc)')
+  #print(f'{tid}: mp_solve() begin')
 
   lsqc = Solver()
   lsqc.from_string(lsqc_sexpr)
@@ -1150,32 +1187,35 @@ def mp_solve(tid, lsqc_sexpr, bound_depth, count_gate):
 
   while True:
     tight_bound_depth = q_down[tid].get()
-    print(f'{tid}: got work={tight_bound_depth}')
-
     if tight_bound_depth == MP_STOP_SIGNAL:
+      #print(f'{tid}: mp_solve() end')
       return MP_STOP_SIGNAL, None, None
 
-    print(f'{tid}: trying maximal depth = {tight_bound_depth}...')
+    print(f'{tid}: checking with depth bound={tight_bound_depth}...')
 
-    bit_tight_bound_depth = BitVecVal(tight_bound_depth-1, n_bits)
     start_time = datetime.datetime.now()
+    res = lsqc.check([UGE(BitVecVal(tight_bound_depth-1, n_bits), time[l]) for l in range(count_gate)])
 
-    res = lsqc.check([UGE(bit_tight_bound_depth, time[l]) for l in range(count_gate)])
-    print("{}: status={}, depth optimization time = {}".format(
-      tid, res, datetime.datetime.now() - start_time))
+    print(f'{tid}: status={res}, depth optimization time={datetime.datetime.now()-start_time}')
 
-    if res == sat:
-      m = lsqc.model()
-      model = dict()
-      for x in m:
-        if isinstance(m[x], BitVecNumRef):
-          model[x.name()] = m[x].as_long()
-        elif isinstance(m[x], BoolRef):
-          model[x.name()] = str(m[x]) == 'True'
-        else:
-          raise RuntimeError('model contains unsupported z3 type: {type(m[x])}')
-      print(model)
+    if res == target_result:
+      if res == sat:
+        m = lsqc.model()
+        model = dict()
+        for x in m:
+          if isinstance(m[x], BitVecNumRef):
+            model[x.name()] = m[x].as_long()
+          elif isinstance(m[x], BoolRef):
+            model[x.name()] = str(m[x]) == 'True'
+          else:
+            raise RuntimeError('model contains unsupported z3 type: {type(m[x])}')
+        #print(model)
+      else:
+        model = None
+      #print(f'{tid}: mp_solve() end')
       return res, model, tight_bound_depth
+    elif res == unknown:
+      raise RuntimeError('unexpected z3.CheckSatResult: {res}')
     else:
       q_up.put(tid)
 
