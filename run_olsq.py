@@ -117,6 +117,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    print(f'Reading {args.qasm}...')
     circuit_info = open(args.qasm, "r").read()
     if args.device_type == "grid":
         device = get_nnGrid(args.device, args.swap_duration)
@@ -128,11 +129,13 @@ if __name__ == "__main__":
     b_file = b_file[-2]
     b_file = b_file.split('/')
     b_file = b_file[-1]
-    file_name = args.folder+"/"+str(args.device_type)+"_"+b_file+".json"
+    fname = f'{args.folder}/{args.device_type}_{b_file}.{args.n_procs}.json'
 
     mode = "normal"
     if args.tran:
         mode = "transition"
+
+    print(f'Starting OLSQ in {mode} mode...')
     result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre,
                              args.all_commute, args.encoding, args.swap_bound, 
                              args.n_procs)
@@ -144,6 +147,6 @@ if __name__ == "__main__":
     data["final_mapping"] = result[3]
     data["initial_mapping"] = result[4]
     
-    with open(file_name, 'w') as file_object:
+    with open(fname, 'w') as file_object:
         json.dump(data, file_object, default=int)
     
