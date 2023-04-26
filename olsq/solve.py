@@ -809,20 +809,23 @@ class OLSQ:
         # depth optimization #
         ######################
 
-        MAX_STEP = 10
+        STEP_TIERS = [(100, 10), (0, 5)]
         self.bound_depth = bound_depth
 
         # 1. quickly find any solution using large steps
         bounds = queue.Queue()
-        n_bounds = 0
+        bounds_l = []
         while tight_bound_depth <= self.bound_depth:
           bounds.put(tight_bound_depth)
-          n_bounds += 1
-          if tight_bound_depth > 100:
-            tight_bound_depth += MAX_STEP
-          else:
-            tight_bound_depth += 5
+          bounds_l.append(tight_bound_depth)
 
+          for threshold, step in STEP_TIERS:
+            if tight_bound_depth > threshold:
+              tight_bound_depth += step
+              break
+
+        n_bounds = len(bounds_l)
+        print(f'Checking bounds: {bounds_l}')
         print(f'Approximating optimal depth with min(n_procs={n_procs}, n_bounds={n_bounds}) processors...')
         sat_res, model, tight_bound_depth = self._solve_parallel(
           lsqc=lsqc, target_result=sat, n_procs=n_procs, 
@@ -834,14 +837,26 @@ class OLSQ:
 
         # 2. descend with step=1 to find the depth optimal solution
         bounds = queue.Queue()
-        n_bounds = 0
 
-        for i in range(tight_bound_depth-1, max(1, tight_bound_depth-MAX_STEP), -1):
+        i = bounds_l.index(tight_bound_depth)
+        if i == 0:
+          stop = 1
+        else:
+          stop = bounds_l[i-1]
+
+        for threshold, step in STEP_TIERS:
+          if tight_bound_depth > threshold:
+            break
+
+        bounds_l.clear()
+        for i in range(tight_bound_depth-1, stop, -1):
           # note: this range excludes the next lower bound from the previous stage
           #       since the previous stage returns the lowest submitted bound
           bounds.put(i)
-          n_bounds += 1
+          bounds_l.append(i)
 
+        n_bounds = len(bounds_l)
+        print(f'Checking bounds: {bounds_l}')
         print(f'Minimizing depth with min(n_procs={n_procs}, n_bounds={n_bounds}) processors...')
         sat_res2, model2, tight_bound_depth2 = self._solve_parallel(
           lsqc=lsqc, target_result=unsat, n_procs=n_procs, 
@@ -1087,7 +1102,7 @@ class OLSQ:
     def get_swap_upper_bound(self, heuristic = "sabre"):
         if heuristic == "sabre":
             swap_num, depth = run_sabre(self.list_gate_qubits, self.list_qubit_edge, self.count_physical_qubit)
-            print("Ran heuristic compiler sabre to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
+            print("Ran heuristic compiler (sabre) to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
         else:
             raise TypeError("Only support sabre.")
         return swap_num, depth
@@ -1137,7 +1152,7 @@ class OLSQ:
                     break # for-1
                 elif sat_res == unknown:
                   raise RuntimeError('unexpected z3.CheckSatResult: {res}')
-          else:
+          else: # for-1
             # nothing ready -> check if any procs requested more work
             while not q_up.empty():
               i = q_up.get()
