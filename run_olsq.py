@@ -75,12 +75,12 @@ def get_device_by_name(name, swap_duration):
                         connection=device_set_edge[name], swap_duration=swap_duration)
     return device
 
-def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, commute, encoding, swap_bound = -1):
+def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, commute, encoding, swap_bound, n_procs):
     lsqc_solver = OLSQ(obj_is_swap = obj_is_swap, mode=mode, encoding = encoding, swap_up_bound=swap_bound)
     lsqc_solver.setprogram(circuit_info)
     lsqc_solver.setdevice(device)
     start = timeit.default_timer()
-    result = lsqc_solver.solve(use_sabre, commute=commute, output_mode="IR")
+    result = lsqc_solver.solve(use_sabre, commute=commute, output_mode="IR", n_procs=n_procs)
     stop = timeit.default_timer()
     print('Time: ', stop - start)  
     return result
@@ -111,6 +111,8 @@ if __name__ == "__main__":
         help="user define swap bound")
     parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=1,
         help="swap duration")
+    parser.add_argument("--np", dest='n_procs', type=int, default=1,
+        help="number of processors")
     # Read arguments from command line
 
     args = parser.parse_args()
@@ -131,7 +133,9 @@ if __name__ == "__main__":
     mode = "normal"
     if args.tran:
         mode = "transition"
-    result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.all_commute, args.encoding)
+    result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre,
+                             args.all_commute, args.encoding, args.swap_bound, 
+                             args.n_procs)
     data["device"] = str(args.device)
     data["mode"] = mode
     data["depth"] = result[0]
