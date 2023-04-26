@@ -1,6 +1,6 @@
 import math
 import datetime
-from z3 import Bool, Implies, And, Or, sat, Solver, set_option, BitVec, ULT, ULE, UGE, BitVecVal, Not, Then, AtMost, Goal
+from z3 import Bool, Implies, And, Or, sat, Solver, set_option, BitVec, ULT, ULE, UGE, BitVecVal, Not, Then, AtMost, Goal, BitVecNumRef, BoolRef
 from olsq.input import input_qasm
 from olsq.output import output_qasm
 from olsq.device import qcdevice
@@ -8,6 +8,10 @@ from olsq.run_h_compiler import run_sabre
 import pkgutil
 from enum import Enum
 import timeit
+
+import multiprocessing as mp
+from time import sleep
+import queue
 
 TIMEOUT = 90000
 # MEMORY_MAX_SIZE = 1000000000 * 58
@@ -31,6 +35,16 @@ class Mode(Enum):
     transition = 1
     normal = 2
 
+
+def var_name_fmt(kind):
+  if kind == 'map':
+    return 'map_q{}_t{}'
+  elif kind == 'time':
+    return 'time_{}'
+  elif kind == 'sigma':
+    return 'ifswap_e{}_t{}'
+  else:
+    raise RuntimeError(f'unexpected var kind: {kind}')
 
 def collision_extracting(list_gate_qubits):
     """Extract collision relations between the gates,
@@ -322,7 +336,7 @@ class OLSQ:
         return
 
 
-    def solve(self, use_sabre, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE):
+    def solve(self, use_sabre, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE, n_procs = 1):
         """Formulate an SMT, pass it to z3 solver, and output results.
         CORE OF OLSQ, EDIT WITH CARE.
 
@@ -345,10 +359,10 @@ class OLSQ:
         self._preprocessing(commute)
         if self.mode == Mode.transition:
             print("Using transition based mode...")
-            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose)
+            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose, n_procs)
         elif self.mode == Mode.normal:
             print("Using normal mode...")
-            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose)
+            results = self._solve(use_sabre, commute, output_mode, output_file_name, memory_max_size, verbose, n_procs)
         else:
             raise ValueError( ("Wrong type") )
         return results 
@@ -376,7 +390,7 @@ class OLSQ:
             self.list_span_edge[list_qubit_edge[k][1]].append(k)
         
 
-    def _solve(self, use_sabre = False, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE):
+    def _solve(self, use_sabre = False, commute = False, output_mode: str = None, output_file_name: str = None, memory_max_size=MEMORY_MAX_SIZE, verbose = VERBOSE, n_procs = 1):
         
 
         # pre-processing
@@ -432,9 +446,9 @@ class OLSQ:
             # Mapping Transformations by SWAP Gates.
             self._add_transformation_constraints(bound_depth, lsqc, sigma, pi)
             if self.mode == Mode.transition:
-                not_solved, model = self._optimize_circuit_tran(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre)
+                not_solved, model = self._optimize_circuit_tran(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs)
             else:
-                not_solved, model = self._optimize_circuit_normal(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre)
+                not_solved, model = self._optimize_circuit_normal(tight_bound_depth, lsqc , pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs)
             if not_solved:
                 tight_bound_depth = bound_depth
                 bound_depth = max(2*bound_depth, max_depth)
@@ -454,62 +468,62 @@ class OLSQ:
         length = int(math.log2(self.count_physical_qubit))+1
         # length = int(math.log2(max(count_qubit_edge, self.count_physical_qubit)))+1
 
-        pi = [[BitVec(("map_q{}_t{}".format(i, j)), length) for j in range(bound_depth)]
+        pi = [[BitVec((var_name_fmt('map').format(i, j)), length) for j in range(bound_depth)]
                 for i in range(self.count_program_qubit)]
 
         length = int(math.log2(bound_depth))+1
         # time coordinate for gate l is time[l]
-        time = [BitVec("time_{}".format(i), length) for i in range(len(self.list_gate_qubits))]
+        time = [BitVec(var_name_fmt('time').format(i), length) for i in range(len(self.list_gate_qubits))]
 
         # if at cycle t, a SWAP finishing on edge k, then sigma[k][t]=1
-        sigma = [[Bool("ifswap_e{}_t{}".format(i, j))
+        sigma = [[Bool(var_name_fmt('sigma').format(i, j))
             for j in range(bound_depth)] for i in range(count_qubit_edge)]
 
         return pi, time, sigma
 
-    def _add_injective_mapping_constraints(self, bound_depth, pi, model):
+    def _add_injective_mapping_constraints(self, bound_depth, pi, lsqc):
         # Injective Mapping
         for t in range(0, bound_depth):
-            # model.add(Distinct([pi[m][t] for m in range(self.count_program_qubit)]))
+            # lsqc.add(Distinct([pi[m][t] for m in range(self.count_program_qubit)]))
             for m in range(self.count_program_qubit):
-                model.add(UGE(pi[m][t], 0))
-                model.add(ULT(pi[m][t], self.count_physical_qubit))
+                lsqc.add(UGE(pi[m][t], 0))
+                lsqc.add(ULT(pi[m][t], self.count_physical_qubit))
                 for mm in range(m):
-                    model.add(pi[m][t] != pi[mm][t])
+                    lsqc.add(pi[m][t] != pi[mm][t])
 
-    def _add_consistency_gate_constraints(self, bound_depth, pi, time, model):
+    def _add_consistency_gate_constraints(self, bound_depth, pi, time, lsqc):
         # Consistency between Mapping and Space Coordinates.
         list_gate_qubits = self.list_gate_qubits
         
         for l in self.list_gate_two:
             for t in range(bound_depth):
-                model.add(Or(Not(time[l] == t), Or([Or(And(pi[list_gate_qubits[l][0]][t] == edge[0], pi[list_gate_qubits[l][1]][t] == edge[1]), \
+                lsqc.add(Or(Not(time[l] == t), Or([Or(And(pi[list_gate_qubits[l][0]][t] == edge[0], pi[list_gate_qubits[l][1]][t] == edge[1]), \
                                 And(pi[list_gate_qubits[l][0]][t] == edge[1], pi[list_gate_qubits[l][1]][t] == edge[0])) for edge in self.list_qubit_edge ] )))
 
-    def _add_dependency_constraints(self, model, time, bound_depth, commute):
+    def _add_dependency_constraints(self, lsqc, time, bound_depth, commute):
         # list_gate_duration = self.list_gate_duration
         list_gate_dependency = self.list_gate_dependency
         count_gate = len(self.list_gate_qubits)
         if commute:
             for d in list_gate_dependency:
-                model.add(time[d[0]]!=time[d[1]])
+                lsqc.add(time[d[0]]!=time[d[1]])
         elif self.mode == Mode.transition:
             for d in list_gate_dependency:
                 # lsqc.add(time[d[0]] <= time[d[1]])
-                model.add(ULE(time[d[0]],time[d[1]]))
+                lsqc.add(ULE(time[d[0]],time[d[1]]))
         else:
             # length = int(math.log2(bound_depth))+1
             # bit_duration_list = [BitVecVal(list_gate_duration[l], length) for l in range(count_gate)]
             # bit_duration_minus_one_list = [BitVecVal(list_gate_duration[l]-1, length) for l in range(count_gate)]
 
             for d in list_gate_dependency:
-                model.add(ULT(time[d[0]], time[d[1]]))
+                lsqc.add(ULT(time[d[0]], time[d[1]]))
             # add initial condition for gates
             for l in range(count_gate):
-                model.add(ULE(0, time[l]))
-                # model.add(ULE(bit_duration_minus_one_list[l], time[l]))
+                lsqc.add(ULE(0, time[l]))
+                # lsqc.add(ULE(bit_duration_minus_one_list[l], time[l]))
 
-    def _add_swap_constraints(self, bound_depth, sigma, model, normal = False, time = None, pi = None):
+    def _add_swap_constraints(self, bound_depth, sigma, lsqc, normal = False, time = None, pi = None):
         # if_overlap_edge takes in two edge indices _e_ and _e'_,
         # and returns whether or not they overlap
         list_qubit_edge = self.list_qubit_edge
@@ -541,21 +555,21 @@ class OLSQ:
         # No swap for t<s
         for t in range(min(self.swap_duration - 1, bound_depth)):
             for k in range(count_qubit_edge):
-                model.add(sigma[k][t] == False)
+                lsqc.add(sigma[k][t] == False)
         # swap gates can not overlap with swap
         for t in range(self.swap_duration - 1, bound_depth):
             for k in range(count_qubit_edge):
                 for tt in range(t - self.swap_duration + 1, t):
-                    model.add(Or(Not(sigma[k][t]),
+                    lsqc.add(Or(Not(sigma[k][t]),
                         Not(sigma[k][tt])))
                 for tt in range(t - self.swap_duration + 1, t + 1):
                     for i in range(2):
                         for kk in self.list_span_edge[list_qubit_edge[k][i]]:
                             if kk != k:
-                                model.add(Or(Not(sigma[k][t]), 
+                                lsqc.add(Or(Not(sigma[k][t]), 
                                             Not(sigma[kk][tt])))
                     # for kk in list_overlap_edge[k]:
-                    #     model.add(Implies(sigma[k][t] == True,
+                    #     lsqc.add(Implies(sigma[k][t] == True,
                     #         sigma[kk][tt] == False))
                 
 
@@ -569,12 +583,12 @@ class OLSQ:
                         # for tt in range(t - self.swap_duration + 1, t + self.list_gate_duration[l]):
                         for tt in range(t - self.swap_duration + 1, t + 1):
                             if l in self.list_gate_single:
-                                model.add(Implies(And(time[l] == tt,
+                                lsqc.add(Implies(And(time[l] == tt,
                                     Or(pi[list_gate_qubits[l][0]][tt] == list_qubit_edge[k][0],
                                         pi[list_gate_qubits[l][0]][tt] == list_qubit_edge[k][1])),
                                         sigma[k][t] == False             ))
                             elif l in self.list_gate_two:
-                                model.add(Implies(And( \
+                                lsqc.add(Implies(And( \
                                     time[l] == tt, \
                                         Or(pi[list_gate_qubits[l][0]][tt] == list_qubit_edge[k][0], \
                                         pi[list_gate_qubits[l][0]][tt] == list_qubit_edge[k][1], \
@@ -583,12 +597,12 @@ class OLSQ:
                                         sigma[k][t] == False           ))
         # else:
         #     for t in range(bound_depth-1):
-        #             model.add(Or([And(sigma[k][t],
+        #             lsqc.add(Or([And(sigma[k][t],
         #                              And([Not(sigma[kk][t]) for kk in itertools.chain(range(k), range(k+1, count_qubit_edge))]))
         #                          for k in range(count_qubit_edge)]))
 
      
-    def _add_transformation_constraints(self, bound_depth, model, sigma, pi):
+    def _add_transformation_constraints(self, bound_depth, lsqc, sigma, pi):
         list_qubit_edge = self.list_qubit_edge
         count_qubit_edge = len(list_qubit_edge)
         list_span_edge = self.list_span_edge
@@ -596,7 +610,7 @@ class OLSQ:
         for t in range(bound_depth - 1):
             for n in range(self.count_physical_qubit):
                 for m in range(self.count_program_qubit):
-                    model.add(
+                    lsqc.add(
                         Implies(And(Not(Or([sigma[k][t] for k in list_span_edge[n]])),
                                 pi[m][t] == n), pi[m][t + 1] == n))
         
@@ -604,14 +618,14 @@ class OLSQ:
         for t in range(bound_depth - 1):
             for k in range(count_qubit_edge):
                 for m in range(self.count_program_qubit):
-                    model.add(Implies(And(sigma[k][t] == True,
+                    lsqc.add(Implies(And(sigma[k][t] == True,
                         pi[m][t] == list_qubit_edge[k][0]),
                             pi[m][t + 1] == list_qubit_edge[k][1]))
-                    model.add(Implies(And(sigma[k][t] == True,
+                    lsqc.add(Implies(And(sigma[k][t] == True,
                         pi[m][t] == list_qubit_edge[k][1]),
                             pi[m][t + 1] == list_qubit_edge[k][0]))
            
-    def _add_atmostk_cnf(self, model, sigma, k, tight_bound_depth):
+    def _add_atmostk_cnf(self, lsqc, sigma, k, tight_bound_depth):
         from pysat.card import CardEnc
         num_sigma = 1+(tight_bound_depth+1)*len(self.list_qubit_edge)
         sigma_list = [i for i in range(1,num_sigma)]
@@ -654,22 +668,22 @@ class OLSQ:
             # print("or_list: ", or_list)
             # input()
             # and_list.append(Or(or_list))
-            model.add(Or(or_list))
+            lsqc.add(Or(or_list))
         # self.ancillary_var_counter = max_idx + 1
         # print("clauses num: {}".format(len(cnf.clauses)))
         # print("anxillary num: {}".format(len(ancillary)))
         # print(and_list)
-        # model.add(And(and_list))
+        # lsqc.add(And(and_list))
 
     def _count_swap(self, model, sigma, result_depth):
         n_swap = 0
         for k in range(len(self.list_qubit_edge)):
             for t in range(result_depth):
-                if model[sigma[k][t]]:
+                if model[var_name_fmt('sigma').format(k, t)]:
                     n_swap += 1
         return n_swap
 
-    def _optimize_circuit_tran(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre):
+    def _optimize_circuit_tran(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs):
         if use_sabre:
             swap_sabre = self.swap_sabre
             if swap_sabre > 0:
@@ -681,13 +695,13 @@ class OLSQ:
         print("set initial swap bound {}".format(upper_b_swap))
         lower_b_swap = 0
         bound_swap_num = 0
-        find_min_depth = False
+        found_min_depth = False
         # incremental solving use pop and push
 
         n_swap = -1
         length = int(math.log2(bound_depth))+1
         bit_tight_bound_depth = None
-        while not find_min_depth:
+        while not found_min_depth:
             bit_tight_bound_depth = BitVecVal(tight_bound_depth, length)
             print("Trying maximal depth = {}...".format(tight_bound_depth))
             start_time = datetime.datetime.now()
@@ -695,7 +709,7 @@ class OLSQ:
             satisfiable = lsqc.check([UGE(bit_tight_bound_depth, time[l]) for l in range(count_gate)])
             print("Depth optimization time = {}, time including preprocessing = {}.".format(datetime.datetime.now() - start_time, timeit.default_timer()-self.start))
             if satisfiable == sat:
-                find_min_depth = True
+                found_min_depth = True
                 model = lsqc.model()
                 n_swap = self._count_swap(model, sigma, tight_bound_depth)
                 upper_b_swap = min(n_swap-1, upper_b_swap)
@@ -709,7 +723,7 @@ class OLSQ:
                 if tight_bound_depth >= bound_depth:
                     print("FAIL to find depth witnin {}.".format(bound_depth-1))
                     break
-        if not find_min_depth:
+        if not found_min_depth:
             return True, None
         
         # stats = lsqc.statistics()
@@ -735,7 +749,7 @@ class OLSQ:
                 # cur_swap = model[count_swap].as_long()
                 cur_swap = self._count_swap(model, sigma, tight_bound_depth)
                 # print(cur_swap, lower_b_swap)
-                result = self._extract_results(model, time, pi, sigma, "qasm", "intermediate_result_swap_count_{}.qasm".format(cur_swap))
+                #result = self._extract_results(model, time, pi, sigma, "qasm", "intermediate_result_swap_count_{}.qasm".format(cur_swap))
                 if cur_swap > lower_b_swap:
                     upper_b_swap = cur_swap
                     if use_sabre:
@@ -767,8 +781,7 @@ class OLSQ:
             lsqc.pop()
         return not_solved, model
     
-
-    def _optimize_circuit_normal(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre):
+    def _optimize_circuit_normal(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre, n_procs):
         if use_sabre:
             swap_sabre = self.swap_sabre
             if swap_sabre > 0:
@@ -780,40 +793,101 @@ class OLSQ:
             upper_b_swap = len(self.list_gate_two)
         lower_b_swap = 0
         bound_swap_num = 0
-        find_min_depth = False
         # incremental solving use pop and push
 
-        length = int(math.log2(bound_depth))+1
-        bit_tight_bound_depth = None
-        n_swap = -1
-        step = 5
-        while not find_min_depth:
-            bit_tight_bound_depth = BitVecVal(tight_bound_depth-1, length)
-            print("Trying maximal depth = {}...".format(tight_bound_depth))
-            start_time = datetime.datetime.now()
-            # for depth optimization
-            satisfiable = lsqc.check([UGE(bit_tight_bound_depth, time[l]) for l in range(count_gate)])
-            print("status:{}, Depth optimization time = {}, time including preprocessing = {}".format(satisfiable, datetime.datetime.now() - start_time, timeit.default_timer()-self.start))
-            if satisfiable == sat:
-                find_min_depth = True
-                model = lsqc.model()
-                n_swap = self._count_swap(model, sigma, tight_bound_depth)
-                upper_b_swap = min(n_swap-1, upper_b_swap)
-                bound_swap_num = upper_b_swap
-                # print("Find minimal depth {} with swap num {}".format(tight_bound_depth, model[count_swap].as_long()))
-                print("Find minimal depth {} with swap num {}".format(tight_bound_depth, n_swap))
+        # setup multiprocessing
+        bounds = queue.Queue()
+        n_bounds = 0
+        while tight_bound_depth <= bound_depth:
+          bounds.put(tight_bound_depth)
+          n_bounds += 1
+          if tight_bound_depth > 100:
+            tight_bound_depth += 10
+          else:
+            tight_bound_depth += 5
+        n_procs = min(n_procs, n_bounds)
+        q_down.extend([mp.Queue() for _ in range(n_procs)])
+        cur_bounds = [0 for _ in range(n_procs)]
+        LARGE_UNUSED_BOUND = bound_depth + 1
+
+        # for depth optimization
+        is_done = False
+        min_bound = min(cur_bounds)
+        with mp.Pool(n_procs) as p:
+          mp_results = []
+          for i in range(n_procs):
+            # note: z3py objects use ctypes with pointers, which cannot be pickled
+            mp_results.append(p.apply_async(mp_solve, (i, lsqc.sexpr(), bound_depth, count_gate)))
+            bound = bounds.get()
+            cur_bounds[i] = bound
+            q_down[i].put(bound) # len(bounds) guaranteed to be >= n_procs
+
+          for i in range(n_procs):
+            print(f'mp_results[{i}]: {mp_results[i]}')
+
+          while True:
+            for i in range(n_procs):
+              # ready := returned sat or MP_STOP_SIGNAL
+              if mp_results[i].ready():
+                sat_res, model, tight_bound_depth = mp_results[i].get()
+                if sat_res != MP_STOP_SIGNAL:
+                  print(f'process {i} is ready: {mp_results[i]}')
+
+                  if sat_res == sat:
+                    # sat -> wait on procs with lower bound
+                    for j in range(n_procs):
+                      if cur_bounds[j] < cur_bounds[i]:
+                        print(f'process {i} waiting on {j} with bound={cur_bounds[j]}')
+                        break # for-2
+                    # there were none -> we found the lowest _from our input_
+                    else: # for-2
+                      print(f'process {i} found sat with bound={cur_bounds[i]}')
+                      p.terminate()
+                      p.join()
+                      break # for-1
+                  elif sat_res == unsat:
+                    pass
+                  else:
+                    raise RuntimeError('unexpected z3 result: {sat_res}')
             else:
-                # lsqc.pop()
-                if tight_bound_depth > 100: 
-                    step = 10
-                tight_bound_depth = step + tight_bound_depth
-                if tight_bound_depth > bound_depth:
-                    print("FAIL to find depth witnin {}.".format(bound_depth))
-                    break
-        if not find_min_depth:
-            return True, None
+              # nothing ready -> check if any procs requested more work
+              while not q_up.empty():
+                i = q_up.get()
+                print(f'sending {i} work')
+                if not bounds.empty():
+                  bound = bounds.get()
+                  cur_bounds[i] = bound
+                  q_down[i].put(bound)
+                else:
+                  print(f'sending MP_STOP_SIGNAL to {i}')
+                  if cur_bounds[i] != LARGE_UNUSED_BOUND:
+                    cur_bounds[i] = LARGE_UNUSED_BOUND
+                    q_down[i].put(MP_STOP_SIGNAL)
+                  break # while-2
+
+              if all(map(lambda b: b == LARGE_UNUSED_BOUND, cur_bounds)):
+                print("FAILED to find depth within {}.".format(bound_depth))
+                break # while-1
+
+              sleep(1)
+              continue # while-1
+
+            # only reachable from break after terminate
+            break # while-1
+
+        print(f'result: {sat_res}')
+
+        if sat_res == sat:
+          n_swap = self._count_swap(model, sigma, tight_bound_depth)
+          upper_b_swap = min(n_swap-1, upper_b_swap)
+          bound_swap_num = upper_b_swap
+          print("Found minimal depth {} with swap num {}".format(tight_bound_depth, n_swap))
+        else:
+          return True, None
+
         if not self.obj_is_swap:
-            return False, model
+          return False, model
+
         # stats = lsqc.statistics()
         # print(stats)
         lsqc.add([UGE(bit_tight_bound_depth, time[l]) for l in range(count_gate)])
@@ -841,7 +915,7 @@ class OLSQ:
                 model = lsqc.model()
                 # cur_swap = model[count_swap].as_long()
                 cur_swap = self._count_swap(model, sigma, tight_bound_depth)
-                result = self._extract_results(model, time, pi, sigma, "qasm", "intermediate_result_swap_count_{}.qasm".format(cur_swap))
+                #result = self._extract_results(model, time, pi, sigma, "qasm", "intermediate_result_swap_count_{}.qasm".format(cur_swap))
                 # print(cur_swap, lower_b_swap)
                 if cur_swap > lower_b_swap:
                     upper_b_swap = cur_swap
@@ -876,7 +950,6 @@ class OLSQ:
             lsqc.pop()
         return not_solved, model
 
-    
     def _extract_results(self, model, time, pi, sigma, output_mode, output_file_name):
         # post-processing
         list_gate_two = self.list_gate_two
@@ -895,8 +968,10 @@ class OLSQ:
         result_depth += 1
         list_result_swap = []
         # print(m.evaluate(f(x)))
+        print(f'{len(sigma)}?{count_qubit_edge} {len(sigma[0])}?{result_depth}')
         for k in range(count_qubit_edge):
             for t in range(result_depth):
+                print(k,t)
                 if model[sigma[k][t]]:
                     list_result_swap.append((k, t))
                     print(f"SWAP on physical edge ({list_qubit_edge[k][0]},"\
@@ -1055,3 +1130,54 @@ class OLSQ:
         else:
             raise TypeError("Only support sabre.")
         return swap_num, depth
+
+#################################
+# multiprocessing helpers begin #
+
+MP_STOP_SIGNAL = -1
+q_up = mp.Queue()
+q_down = []
+
+def mp_solve(tid, lsqc_sexpr, bound_depth, count_gate):
+  # note: z3py objects use ctypes with pointers, which cannot be pickled
+  print(f'mp_solve({q_down[tid]}, {q_up}, {tid}, lsqc)')
+
+  lsqc = Solver()
+  lsqc.from_string(lsqc_sexpr)
+
+  n_bits = int(math.log2(bound_depth))+1
+  time = [BitVec(var_name_fmt('time').format(i), n_bits) for i in range(count_gate)]
+
+  while True:
+    tight_bound_depth = q_down[tid].get()
+    print(f'{tid}: got work={tight_bound_depth}')
+
+    if tight_bound_depth == MP_STOP_SIGNAL:
+      return MP_STOP_SIGNAL, None, None
+
+    print(f'{tid}: trying maximal depth = {tight_bound_depth}...')
+
+    bit_tight_bound_depth = BitVecVal(tight_bound_depth-1, n_bits)
+    start_time = datetime.datetime.now()
+
+    res = lsqc.check([UGE(bit_tight_bound_depth, time[l]) for l in range(count_gate)])
+    print("{}: status={}, depth optimization time = {}".format(
+      tid, res, datetime.datetime.now() - start_time))
+
+    if res == sat:
+      m = lsqc.model()
+      model = dict()
+      for x in m:
+        if isinstance(m[x], BitVecNumRef):
+          model[x.name()] = m[x].as_long()
+        elif isinstance(m[x], BoolRef):
+          model[x.name()] = str(m[x]) == 'True'
+        else:
+          raise RuntimeError('model contains unsupported z3 type: {type(m[x])}')
+      print(model)
+      return res, model, tight_bound_depth
+    else:
+      q_up.put(tid)
+
+#  multiprocessing helpers end  #
+#################################
