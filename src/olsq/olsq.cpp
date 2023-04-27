@@ -522,9 +522,9 @@ bool OLSQ::optimizeSwapForDepth(unsigned_t lower_swap_bound, unsigned_t upper_sw
             --swap_bound;
         }
         else{
-            cout << "First run " << firstRun << endl;
-            cout << "upper_swap_bound " << upper_swap_bound << endl;
-            cout << "swap_bound " << swap_bound << endl;
+            // cout << "First run " << firstRun << endl;
+            // cout << "upper_swap_bound " << upper_swap_bound << endl;
+            // cout << "swap_bound " << swap_bound << endl;
             if (swap_bound < upper_swap_bound){
                 find_min_swap = true;
             }

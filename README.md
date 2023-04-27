@@ -16,10 +16,10 @@ For more details on the theory and the experiments, please refer to [the paper](
 For more details on the software implementation, please refer to the [API documentation](https://olsq.readthedocs.io/en/latest/).
 Below is a brief tutorial on how to use the package.
 
-## Installation
+## Compilation
 
 ```
-pip install -U olsq
+cmake .. -DPYBIND11_DIR=<Path_to_pybind11> -DZ3_DIR=<Path_to_z3_build>
 ```
 Please make sure that you have `networkx` version `>=2.5` and `z3-solver` version `>=4.8.9.0` in your Python environment.
 
