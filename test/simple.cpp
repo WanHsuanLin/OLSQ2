@@ -7,7 +7,6 @@
 using namespace OLSQ_NAMESPACE;
 
 int main(int argc, char *argv[]) {
-  printf("hello world!\n");
   Circuit cir("test", 4, 4);
   vector<unsigned_t> vTargetQubit(2,0);
   vTargetQubit[0] = 0;
