@@ -16,12 +16,18 @@ For more details on the theory and the experiments, please refer to [the paper](
 For more details on the software implementation, please refer to the [API documentation](https://olsq.readthedocs.io/en/latest/).
 Below is a brief tutorial on how to use the package.
 
-## Compilation
+## Setup
 
 ```
-cmake .. -DPYBIND11_DIR=<Path_to_pybind11> -DZ3_DIR=<Path_to_z3_build>
+git clone --recursive https://github.com/WanHsuanLin/OLSQ2.git
+git checkout cpp
+mkdir build && cd build
+cmake ..
 ```
-Please make sure that you have `networkx` version `>=2.5` and `z3-solver` version `>=4.8.9.0` in your Python environment.
+
+- If you have an existing pybind11 installation, you do not need `--recursive`.
+- You must have an existing z3 installation, which you can specify using `CMAKE_PREFIX_PATH` or through other cmake mechanisms.
+- Please make sure that you have `networkx` version `>=2.5` and `z3-solver` version `>=4.8.9.0` in your Python environment.
 
 ## Initialization
 
