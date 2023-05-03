@@ -1,1 +1,2 @@
-from src.pyolsq.apiPy import createCircuit, createDevice, useSabre
+from .apiPy import createCircuit, createDevice, useSabre
+from olsqpyb import Device, OLSQ #, LayoutSynthesizer

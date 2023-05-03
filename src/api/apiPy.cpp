@@ -9,7 +9,7 @@ OLSQ_NAMESPACE_CPP_START
 namespace py = pybind11;
 
 
-PYBIND11_MODULE(olsqPy, m) {
+PYBIND11_MODULE(olsqpyb, m) {
     // optional module docstring
     m.doc() = "pybind11 olsq plugin";
 

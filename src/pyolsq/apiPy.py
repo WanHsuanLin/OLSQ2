@@ -1,11 +1,6 @@
-import os
-import sys
-sys.path.append(os.getcwd())
-# sys.path.insert(0, '/Users/wanhsuan/Desktop/Github/OLSQ-dev/build')
-sys.path.insert(0, '/home/wanhsuan/OLSQ-dev/build')
-from src.pyolsq.input import input_qasm
-from src.pyolsq.run_h_compiler import run_sabre
-from olsqPy import Device, Circuit, OLSQ, addGate, setEdge, setDependency, setInitialMapping
+from .input import input_qasm
+from .run_h_compiler import run_sabre
+from olsqpyb import Device, Circuit, OLSQ, addGate, setEdge, setInitialMapping
 
 def createCircuit(name, program, is_qasm= True, gate_duration: dict = None):
     """Translate input program to Circuit

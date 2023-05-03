@@ -1,12 +1,9 @@
 import argparse
-import json
 import timeit
 import os
 import sys
-sys.path.append(os.getcwd())
-sys.path.insert(0, os.getcwd()+'/build')
-from src.pyolsq.apiPy import createCircuit, createDevice, useSabre
-from olsqPy import Device, OLSQ, LayoutSynthesizer
+sys.path.insert(0, os.path.join(os.getcwd(), 'build'))
+from pyolsq import *
 
 def get_nnGrid(n: int):
     my_coupling = []
@@ -82,7 +79,7 @@ def get_device_by_name(name):
 def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_transition, obj_is_swap, use_sabre, swap_duration):
     circuit = createCircuit(filename, circuit_info)
     circuit.printCircuit()
-    lsqc_solver = LayoutSynthesizer(circuit, device)
+    lsqc_solver = OLSQ(circuit, device)
     lsqc_solver.setSwapDuration(swap_duration)
     if mode_is_transition:
         lsqc_solver.initializeTransitionMode()
@@ -98,7 +95,7 @@ def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_
     b_file = b_file.split('/')
     b_file = b_file[-1]
     filename = b_file + ".out"
-    result = lsqc_solver.run()
+    result = lsqc_solver.run(filename)
     stop = timeit.default_timer()
     print('Time: ', stop - start)  
     return result
@@ -111,9 +108,9 @@ if __name__ == "__main__":
         help="grid or heavy-hexagon or ring")
     parser.add_argument("--d", dest='device', type=int,
         help="device (x-by-x grid)")
-    parser.add_argument("--f", dest='folder', type=str,
-        help="the folder to store results")
-    parser.add_argument("--b", dest='benchmark', type=str,
+#    parser.add_argument("--f", dest='folder', type=str, default='.',
+#        help="the folder to store results")
+    parser.add_argument("--b", dest='benchmark', type=str, default='qaoa',
         help="qaoa or others")
     parser.add_argument("--qf", dest="qasm", type=str,
         help="Input file name")
@@ -132,20 +129,27 @@ if __name__ == "__main__":
     # Read arguments from command line
     args = parser.parse_args()
 
-    if args.benchmark == "qaoa":
-        swap_duration = 1
+    if not args.qasm:
+        sys.stderr.write('error: missing qasm file (--qf)\n')
+        sys.exit(1)
     else:
-        swap_duration = 3
+        circuit_info = open(args.qasm, "r").read()
 
-    circuit_info = open(args.qasm, "r").read()
-    
-    if args.device_type == "grid":
+    if not args.device_type:
+      sys.stderr.write('error: missing device type (--dt)\n')
+      sys.exit(1)
+    elif args.device_type == "grid":
+        if not args.device:
+          sys.stderr.write('error: missing grid length (--d)\n')
+          sys.exit(1)
         connection, device = get_nnGrid(args.device)
     else:
         connection, device = get_device_by_name(args.device_type)
 
-    data = dict()
-    
+    if args.benchmark == "qaoa":
+        swap_duration = 1
+    else:
+        swap_duration = 3
 
     run_olsq_tbolsq(args.qasm, circuit_info, device, connection, args.tran, args.swap, args.sabre, swap_duration)
     

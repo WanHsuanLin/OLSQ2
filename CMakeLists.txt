@@ -30,9 +30,16 @@ target_include_directories(olsq
 target_link_libraries(olsq PUBLIC z3::libz3)
 
 # python bindings
-pybind11_add_module(olsqPy src/api/apiPy.cpp)
-target_link_libraries(olsqPy PUBLIC olsq)
+pybind11_add_module(olsqpyb src/api/apiPy.cpp)
+target_link_libraries(olsqpyb PUBLIC olsq)
+
+# python api
+add_custom_target(pyolsq ALL
+  COMMAND
+    ${CMAKE_COMMAND} -E create_symlink "${PROJECT_SOURCE_DIR}/src/pyolsq/"  "${PROJECT_BINARY_DIR}/pyolsq"
+)
 
 # main program
 add_executable(main app/main.cpp)
 target_link_libraries(main olsq)
+
