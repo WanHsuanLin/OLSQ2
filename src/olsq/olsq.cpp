@@ -67,7 +67,7 @@ void OLSQ::runSMT(){
         _timer.showUsage("Generating formulation", TimeUsage::PARTIAL);
         // _timer.showUsage("Generating formulation", TimeUsage::FULL);
         _timer.start(TimeUsage::PARTIAL);
-        fprintf(stdout, "[Info] Iter %d: Optimizting model                             \n", iter);
+        fprintf(stdout, "[Info] Iter %d: Optimizing model                             \n", iter);
         solve = optimize();
         if(!solve)
             increase_depth_bound();
