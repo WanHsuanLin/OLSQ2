@@ -554,7 +554,7 @@ void OLSQ::extractModel(){
         circuitDepth = (circuitDepth < gateTime) ? gateTime : circuitDepth;
         gate.setExecutionTime(gateTime);
         for ( j = 0; j < gate.nTargetQubit();  ++j ){
-            gate.setTargetPhysicalQubit(j, m.eval(_smt.vvPi[gateTime][gate.targetProgramQubit(j)]).get_numeral_int64());
+            gate.addTargetPhysicalQubit(j, m.eval(_smt.vvPi[gateTime][gate.targetProgramQubit(j)]).get_numeral_int64());
             // cout << m.eval(_smt.vvPi[gateTime][q]) << " " << m.eval(_smt.vvPi[gateTime][q]).get_numeral_int64() << endl;
         }
         if (_verbose > 0){
@@ -578,8 +578,7 @@ void OLSQ::extractModel(){
             if (m.eval(_smt.vvSigma[t][e]).bool_value() == 1){
                 swapTargetQubit[0] = _device.edge(e).qubitId1();
                 swapTargetQubit[1] = _device.edge(e).qubitId2();
-                _pCircuit->addSwapGate(_swapIdx, swapTargetQubit, _olsqParam.swap_duration);
-                ++_swapIdx;
+                _pCircuit->addSwapGate(swapTargetQubit, _olsqParam.swap_duration);
                 swapId = _pCircuit->nSwapGate() - 1;
                 Gate & gate = _pCircuit->swapGate(swapId);
                 gate.setExecutionTime(t);
