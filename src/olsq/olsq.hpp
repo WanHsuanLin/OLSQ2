@@ -16,8 +16,10 @@
 #include "device/device.hpp"
 #include "misc/timeUsage.hpp"
 #include <algorithm>
-#include "z3++.h"
+#include <bitwuzla/bitwuzla.h>
+#include "PB2CNF.h"
 #include <set>
+#include <map>
 
 OLSQ_NAMESPACE_HPP_START
 
@@ -113,19 +115,20 @@ class OLSQ{
                 vTg.clear();
                 vvSigma.clear();
             }
-            ~smt(){}
+            ~smt(){
+                bitwuzla_delete(pSolver);
+            }
             void reset(){
-                smtSolver = z3::solver(c);
+                bitwuzla_reset(pSolver);
+                bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 1);
                 vvPi.clear();
                 vTg.clear();
                 vvSigma.clear();
             }
-            string                      name   = "z3";
-            z3::context                 c;
-            z3::solver                  smtSolver = z3::solver(c);
-            vector<vector<z3::expr> >   vvPi;         // t->qId
-            vector<z3::expr>            vTg;
-            vector<vector<z3::expr> >   vvSigma;      // t->qId
+            Bitwuzla *                        pSolver = bitwuzla_new();
+            vector<vector<BitwuzlaTerm*> >    vvPi;         // t->qId
+            vector<BitwuzlaTerm*>             vTg;
+            vectoer<vector<BitwuzlaTerm*> >   vvSigma;      // t->qId
         } _smt;
     ////////////////////////////
     // Private member

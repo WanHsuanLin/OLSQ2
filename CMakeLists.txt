@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # dependencies
 find_package(Python REQUIRED COMPONENTS Interpreter Development)
-find_package(Z3 REQUIRED)
+find_package(Bitwuzla REQUIRED)
 add_subdirectory(pybind11)
 
 # olsq library
@@ -27,7 +27,7 @@ target_include_directories(olsq
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 
-target_link_libraries(olsq PUBLIC z3::libz3)
+target_link_libraries(olsq PUBLIC Bitwuzla::bitwuzla)
 
 # python bindings
 pybind11_add_module(olsqpyb src/api/apiPy.cpp)
