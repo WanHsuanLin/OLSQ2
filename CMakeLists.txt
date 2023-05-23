@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include_directories(pblib/include)
+include_directories(pblib/include/pblib)
 
 # dependencies
 # find_package(Python REQUIRED COMPONENTS Interpreter Development)
@@ -16,7 +16,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 add_subdirectory(pybind11)
 
 find_package(Bitwuzla REQUIRED)
-find_package(PBlib REQUIRED)
+# find_package(PBlib REQUIRED)
 
 # olsq library
 add_library(olsq

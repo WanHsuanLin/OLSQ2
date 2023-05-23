@@ -17,7 +17,7 @@
 #include "misc/timeUsage.hpp"
 #include <algorithm>
 #include <bitwuzla/bitwuzla.h>
-#include <PB2CNF.h>
+#include <pb2cnf.h>
 #include <set>
 #include <map>
 
