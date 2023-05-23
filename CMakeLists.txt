@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.10)
 project(OLSQ VERSION 0.1.0 LANGUAGES CXX)
 
 # global config
@@ -7,9 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # dependencies
-find_package(Python REQUIRED COMPONENTS Interpreter Development)
-find_package(Bitwuzla REQUIRED)
+# find_package(Python REQUIRED COMPONENTS Interpreter Development)
+find_package(PythonInterp REQUIRED)
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
 add_subdirectory(pybind11)
+
+find_package(Bitwuzla REQUIRED)
+find_package(PBlib REQUIRED)
 
 # olsq library
 add_library(olsq
@@ -27,7 +32,7 @@ target_include_directories(olsq
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 
-target_link_libraries(olsq PUBLIC Bitwuzla::bitwuzla)
+target_link_libraries(olsq PUBLIC Pb:PBlib Bitwuzla::bitwuzla)
 
 # python bindings
 pybind11_add_module(olsqpyb src/api/apiPy.cpp)
