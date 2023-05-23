@@ -111,6 +111,7 @@ class OLSQ{
                 // z3::context c;
                 // solver = z3::solver(c);
                 
+                bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 1);
                 vvPi.clear();
                 vTg.clear();
                 vvSigma.clear();
@@ -125,7 +126,7 @@ class OLSQ{
                 vTg.clear();
                 vvSigma.clear();
             }
-            Bitwuzla *                        pSolver = bitwuzla_new();
+            Bitwuzla *                              pSolver = bitwuzla_new();
             vector<vector<const BitwuzlaTerm*> >    vvPi;         // t->qId
             vector<const BitwuzlaTerm*>             vTg;
             vector<vector<const BitwuzlaTerm*> >   vvSigma;      // t->qId

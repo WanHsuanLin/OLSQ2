@@ -48,7 +48,7 @@ def input_qasm(circ_str: str):
             qubit_num = int(words[1][2:-2])
             continue
         
-        if words[0] in ['cx', 'zz', 'u4']:
+        if words[0] in ['cx', 'zz', 'u4', 'rzz(pi/4)']:
             if grammar == 3:
                 try:
                     qubit0 = int(words[1][2:-2])

@@ -67,8 +67,12 @@ void OLSQ::runSMT(){
         _timer.start(TimeUsage::PARTIAL);
         fprintf(stdout, "[Info] Iter %d: Optimizing model                             \n", iter);
         solve = optimize();
-        if(!solve)
+        if(!solve){
             increase_depth_bound();
+            _smt.reset();
+            // !
+            break;
+        }
         ++iter;
     }
 }
@@ -136,7 +140,7 @@ void OLSQ::constructVariableZ3(){
         for (j = 0; j < _device.nEdge(); ++j){
             s = "ifswap_t" + to_string(i) + "_e" + to_string(j);
             // _smt.vvSigma[i].emplace_back(_smt.c.bool_const(s.c_str()));
-            _smt.vvSigma[i].emplace_back(bitwuzla_mk_const(_smt.pSolver, sortbvtime, s.c_str()));
+            _smt.vvSigma[i].emplace_back(bitwuzla_mk_const(_smt.pSolver, sortbool, s.c_str()));
         }
     }
 
@@ -264,7 +268,7 @@ void OLSQ::addSwapConstraintsZ3(){
                 for (tt = t - _olsqParam.swap_duration + 1; tt < t + 1; ++tt){
                     if (ee < e){
                         // cout << "add nonoverlap constraint for " << ee << " and " << e << endl;
-                        // _smt.smtSolver.add(!_smt.vvSigma[t][e] || !_smt.vvSigma[tt][ee]);  
+                        // _smt.smtSolver.add(!_smt.vvSigma[t][e] || !_smt.vvSigma[tt][ee]);
                         bitwuzla_assert(_smt.pSolver, 
                             bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_OR, 
                                 bitwuzla_mk_term1(_smt.pSolver, BITWUZLA_KIND_NOT, _smt.vvSigma[t][e]),
@@ -520,6 +524,8 @@ bool OLSQ::optimizeDepth(){
     else{
         step = (_olsqParam.min_depth > 100) ? 10 : 5;
     }
+    FILE *ptr = fopen("constraint.txt","w");
+    bitwuzla_dump_formula(_smt.pSolver, "smt", ptr);
     while(!find_min_depth && _olsqParam.min_depth < _olsqParam.max_depth ){
         fprintf(stdout, "[Info]          trying to optimize for depth bound %d            \n", _olsqParam.min_depth);
         _timer.start(TimeUsage::PARTIAL);
