@@ -153,4 +153,4 @@ if __name__ == "__main__":
 
     run_olsq_tbolsq(args.qasm, circuit_info, device, connection, args.tran, args.swap, args.sabre, swap_duration)
     
-    
+# python3 run_olsq.py --dt grid --d 3 --b qaoa --qf ../quantum_cir_benchmark/qaoa/qaoa_8_0.qasm
