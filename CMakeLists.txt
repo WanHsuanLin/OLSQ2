@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+add_subdirectory(pblib/include)
+
 # dependencies
 # find_package(Python REQUIRED COMPONENTS Interpreter Development)
 find_package(PythonInterp REQUIRED)
@@ -32,7 +34,7 @@ target_include_directories(olsq
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 
-target_link_libraries(olsq PUBLIC Pb:PBlib Bitwuzla::bitwuzla)
+target_link_libraries(olsq PUBLIC pblib/lib/libpb.a Bitwuzla::bitwuzla)
 
 # python bindings
 pybind11_add_module(olsqpyb src/api/apiPy.cpp)
