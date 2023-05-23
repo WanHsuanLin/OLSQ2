@@ -126,9 +126,9 @@ class OLSQ{
                 vvSigma.clear();
             }
             Bitwuzla *                        pSolver = bitwuzla_new();
-            vector<vector<BitwuzlaTerm*> >    vvPi;         // t->qId
-            vector<BitwuzlaTerm*>             vTg;
-            vectoer<vector<BitwuzlaTerm*> >   vvSigma;      // t->qId
+            vector<vector<const BitwuzlaTerm*> >    vvPi;         // t->qId
+            vector<const BitwuzlaTerm*>             vTg;
+            vector<vector<const BitwuzlaTerm*> >   vvSigma;      // t->qId
         } _smt;
     ////////////////////////////
     // Private member

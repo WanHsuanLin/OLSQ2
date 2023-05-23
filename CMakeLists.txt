@@ -34,7 +34,7 @@ target_include_directories(olsq
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 
-target_link_libraries(olsq PUBLIC pblib/lib/libpb.a Bitwuzla::bitwuzla)
+target_link_libraries(olsq PUBLIC ${PROJECT_SOURCE_DIR}/pblib/lib/libpb.a Bitwuzla::bitwuzla)
 
 # python bindings
 pybind11_add_module(olsqpyb src/api/apiPy.cpp)
