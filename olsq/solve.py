@@ -647,8 +647,9 @@ class OLSQ:
     def _optimize_circuit_tran(self, tight_bound_depth, lsqc, pi, time, sigma, count_gate, bound_depth, use_sabre):
         if use_sabre:
             swap_sabre = self.swap_sabre
+            upper_b_swap = swap_sabre
             if swap_sabre > 0:
-                upper_b_swap = swap_sabre - 1
+                upper_b_swap -= 1
         elif self.swap_up_bound > -1:
             upper_b_swap = self.swap_up_bound
         else:
