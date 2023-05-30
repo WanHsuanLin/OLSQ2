@@ -30,6 +30,7 @@ class OLSQ{
             // cout << "+++++++++++++++++++++=" << &cir << endl;
             // cout << "+++++++++++++++++++++=" << _pCircuit << endl;
             _vpGateDependency.clear();
+            _vpGateTimeWindow.clear();
         }
         ~OLSQ() {}
         bool                          isValidGateIdx(unsigned_t idx)       const { return 0 <= idx && idx < _pCircuit->nGate();}
@@ -45,7 +46,6 @@ class OLSQ{
                                                                         setOptimizeForSwap();}
         void setVerbose(unsigned_t verbose)                     { _verbose = verbose; }
         void setCircuit(Circuit & cir)                          { _pCircuit = &cir; }
-        void useCircuitInitalMapping()                          { _olsqParam.is_given_initial_mapping = true; }                 
         void setSwapDuration(unsigned_t d)                      { _olsqParam.swap_duration = d; }                 
         void setSabreForSwap(bool s, unsigned_t bound)          { _olsqParam.is_use_SABRE_for_swap = s; _olsqParam.sabre_swap_bound = bound; }                 
         void setOptimizeForSwap(){ 
@@ -93,11 +93,10 @@ class OLSQ{
             bool         is_use_SABRE_for_swap         = false;
             bool         is_given_dependency           = false;
             bool         is_given_depth                = false;
-            bool         is_given_initial_mapping      = false;
-            unsigned_t   max_depth                     = 5;
+            bool         use_window_range_for_gate     = false;
+            unsigned_t   max_depth                     = 7;  //  always (power of 2) - 1, for bit length 
             unsigned_t   min_depth                     = 1;
             unsigned_t   max_depth_expand_factor       = 2;
-            unsigned_t   min_depth_expand_step         = 1;
             unsigned_t   sabre_swap_bound              = 0;
             unsigned_t   timeout                       = 86400;
             unsigned_t   swap_duration                  = 1;
@@ -142,6 +141,7 @@ class OLSQ{
         vector<pair<unsigned_t, unsigned_t> >   _vpGateDependency;
         unsigned_t                              _swapIdx;
         unsigned_t                              _verbose;
+        vector<pair<unsigned_t, unsigned_t> >   _vpGateTimeWindow; // pair<start time, end time>
     ////////////////////////////
     // Private functions
     ////////////////////////////
@@ -150,11 +150,11 @@ class OLSQ{
 
         void generateFormulationZ3();
         void constructVariableZ3();
-        void addInjectiveMappingConstraintsZ3();
-        void addValidTwoQubitGateConstraintsZ3();
+        void addInjectiveMappingConstraintsZ3(unsigned_t begin = 0, unsigned_t end = _olsqParam.min_depth);
+        void addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset = 0); // if boundOffset > 0, it means we increase min_depth so we need to add constraints for partial t
         void addDependencyConstraintsZ3();
-        void addSwapConstraintsZ3();
-        void addTransformationConstraintsZ3();
+        void addSwapConstraintsZ3(unsigned_t boundOffset = 0);
+        void addTransformationConstraintsZ3(unsigned_t boundOffset = 0);
         void addDepthConstraintsZ3();
         void addSwapCountConstraintsZ3(unsigned_t bound);
         bool checkModel();
@@ -167,7 +167,7 @@ class OLSQ{
         void extractModel();
         void asapScheduling();
 
-        void increase_depth_bound();
+        void increaseDepthBound();
         void constructDependency();
         void addDependency(Gate& g1, Gate& g2){
             _vpGateDependency.emplace_back(make_pair(g1.idx(), g2.idx()));
@@ -176,6 +176,12 @@ class OLSQ{
             _vpGateDependency.emplace_back(make_pair(g1, g2));
         }
         unsigned_t extract_longest_chain();
+        void updateSMT(unsigned_t d);
+
+        // construct overconstrained problem
+        void constructGateTimeWindow();
+        void updateGateTimeWindow(unsigned_t d);
+        void printGateTimeWindow();
 };
 OLSQ_NAMESPACE_HPP_END
 
