@@ -20,6 +20,7 @@
 #include <pb2cnf.h>
 #include <set>
 #include <map>
+#include <queue>
 
 OLSQ_NAMESPACE_HPP_START
 
@@ -79,7 +80,6 @@ class OLSQ{
             _olsqParam.max_depth_expand_factor = 2;
         }
         void run(string const & fileName);
-        void outputQASM(string const & fileName);
         void setDependency(vector<pair<unsigned_t, unsigned_t> > & vDependencies);
         void printDependency();
     
@@ -93,6 +93,7 @@ class OLSQ{
             bool         is_use_SABRE_for_swap         = false;
             bool         is_given_dependency           = false;
             bool         is_given_depth                = false;
+            bool         is_given_mapping_region       = false;
             bool         use_window_range_for_gate     = false;
             unsigned_t   max_depth                     = 7;  //  always (power of 2) - 1, for bit length 
             unsigned_t   min_depth                     = 1;
@@ -131,6 +132,16 @@ class OLSQ{
             vector<const BitwuzlaTerm*>             vTg;
             vector<vector<const BitwuzlaTerm*> >   vvSigma;      // t->qId
         } _smt;
+
+    struct Node {
+            Node(int_t p, int_t idx, int_t qIdx, int_t eIdx, int_t dis): parentIdx(p), parentEIdx(eIdx), idx(idx), qIdx(qIdx), dis(dis){};
+            ~Node() {};
+            int_t parentIdx;
+            int_t parentEIdx;
+            int_t idx;
+            int_t qIdx;
+            int_t dis;
+        };
     ////////////////////////////
     // Private member
     ////////////////////////////
@@ -182,6 +193,10 @@ class OLSQ{
         void constructGateTimeWindow();
         void updateGateTimeWindow(unsigned_t d);
         void printGateTimeWindow();
+
+        void collectQubitRegion();
+        void bfsSearch();
+        void expandRegion(unsigned_t q);
 };
 OLSQ_NAMESPACE_HPP_END
 

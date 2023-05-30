@@ -1,6 +1,6 @@
 from .input import input_qasm
 from .run_h_compiler import run_sabre
-from olsqpyb import Device, Circuit, OLSQ, addGate, setEdge, setInitialMapping
+from olsqpyb import Device, Circuit, OLSQ, addGate, setEdge, setMappingRegion
 
 def createCircuit(name, program, is_qasm= True, gate_duration: dict = None):
     """Translate input program to Circuit
@@ -42,12 +42,16 @@ def createDevice(name: str, nqubits: int = None, connection: list = None):
     setEdge(device, connection)
     return device
 
-def useSabre(for_swap: bool, for_mapping: bool, olsq: OLSQ, circuit:Circuit, nqubits, connection: list, program, is_qasm):
-    swap_num, depth, initial_mapping = run_sabre(is_qasm, program, connection, nqubits)
+def useSabre(for_swap: bool, for_mapping: bool, olsq: OLSQ, circuit, nqubits, connection: list, program, is_qasm):
+    swap_num, depth, mapping_region, plan = run_sabre(is_qasm, program, connection, nqubits)
     print("[Info] Run heuristic compiler SABRE to get upper bound for SWAP: {}, depth: {}".format(swap_num, depth))
     if for_swap:
         olsq.setSabreForSwap(True, swap_num)
     if for_mapping:
-        olsq.useCircuitInitalMapping()
-        setInitialMapping(circuit, initial_mapping)
+        setMappingRegion(circuit, mapping_region)
+        
+
+def setMappingRegion(circuit: Circuit, connection: list, nqubits):
+    swap_num, depth, mapping_region, plan = run_sabre(1, circuit.qasmstr(), connection, nqubits)
+    setMappingRegion(circuit, mapping_region)
 

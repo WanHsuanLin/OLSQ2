@@ -67,6 +67,7 @@ def run_sabre(is_qasm, circuit_info, coupling, count_physical_qubit):
     qubit_last_gate_time = [-1] * sabre_cir.num_qubits
     pyPlan = [[]]
     current_mapping = [i for i in range(count_physical_qubit)]
+    mapping_region = [{initial_mapping[i]} for i in range(sabre_cir.num_qubits)]
     # print("Print SABRE's results")
     for gate in sabre_cir._data:
         # print(gate[0].name)
@@ -77,6 +78,8 @@ def run_sabre(is_qasm, circuit_info, coupling, count_physical_qubit):
             tmp = current_mapping[gate[1][0].index]
             current_mapping[gate[1][0].index] = current_mapping[gate[1][1].index]
             current_mapping[gate[1][1].index] = tmp
+            mapping_region[gate[1][0].index].insert(current_mapping[gate[1][1].index])
+            mapping_region[gate[1][1].index].insert(current_mapping[gate[1][0].index])
             # print("current mapping:")
             # print(current_mapping)
         max_time = -1
@@ -100,4 +103,4 @@ def run_sabre(is_qasm, circuit_info, coupling, count_physical_qubit):
         # print("plan:")
         # print(pyPlan)
     
-    return count_swap, sabre_cir.depth(), initial_mapping, pyPlan
+    return count_swap, sabre_cir.depth(), mapping_region, pyPlan

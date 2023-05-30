@@ -30,8 +30,18 @@ PYBIND11_MODULE(olsqpyb, m) {
         //     }
         //     return self.setInitialMapping(vInitialMapping); 
         // }, "Set initial mapping")
+        .def("qasm", &Circuit::qasm, "Print circuit information")
+        .def("qasmstr", &Circuit::qasmstr, "Print circuit information")
         .def("printCircuit", &Circuit::printCircuit, "Print circuit information")
         .def("printCircuitLayout", &Circuit::printCircuitLayout, "Print compiled circuit information");
+    m.def("setMappingRegion", [](Circuit& self, pybind11::list pyMappingRegion){
+        vector<set<unsigned_t> > vsMappingRegion;
+        for (py::handle item : pyMappingRegion){
+            vsMappingRegion.emplace_back(item.cast<set<unsigned_t>>());
+        }
+        vsMappingRegion.resize(self.nProgramQubit());
+        return self.setMappingRegion(vsMappingRegion); 
+    }, "Set mapping region for circuit");
 
     m.def("addGate", [](Circuit& self, const string& gateName, pybind11::list pyTargetQubit, unsigned_t duration){
         // convert pyTargetQubit into vTargetQubit
@@ -75,7 +85,6 @@ PYBIND11_MODULE(olsqpyb, m) {
     // bindings to OLSQ class
     py::class_<OLSQ>(m, "OLSQ")
         .def(py::init<Circuit&, Device&>())
-        .def("useCircuitInitalMapping", &OLSQ::useCircuitInitalMapping, "use given initial mapping")
         .def("setSwapDuration", &OLSQ::setSwapDuration, "use given initial mapping (default = 1)")
         .def("setSabreForSwap", &OLSQ::setSabreForSwap, "set SABRE swap count as SWAP upper bound")
         .def("initializeTransitionMode", &OLSQ::initializeTransitionMode, "use transition based mode (default)", py::arg("max_depth") = 5, py::arg("min_depth") = 1)
@@ -99,6 +108,7 @@ PYBIND11_MODULE(olsqpyb, m) {
         }
         return self.setDependency(vDependencies); 
     }, "Set dependency for circuit");
+    
 }
 
 OLSQ_NAMESPACE_CPP_END
