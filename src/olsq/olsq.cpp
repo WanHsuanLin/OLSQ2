@@ -510,7 +510,8 @@ bool OLSQ::optimizeDepth(){
             bitwuzla_pop(_smt.pSolver, 1);
             _olsqParam.min_depth += step;
             updateSMT(step);
-            has_jump = true;
+            if(step > 1)
+                has_jump = true;
         }
     }
     if (find_min_depth){
@@ -541,10 +542,12 @@ bool OLSQ::optimizeSwap(){
         if (_olsqParam.is_transition){
             _olsqParam.min_depth = _olsqParam.min_depth + 5;
             _olsqParam.max_depth = _olsqParam.min_depth + 6;
+            updateGateTimeWindow(5);
         }
         else{
             _olsqParam.min_depth = _olsqParam.min_depth + 10;
             _olsqParam.max_depth = _olsqParam.min_depth + 11;
+            updateGateTimeWindow(10);
         }
         upper_swap_bound = _pCircuit->nSwapGate() - 1;
         firstRun = false;
