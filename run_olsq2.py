@@ -1,11 +1,12 @@
-import argparse
+# import argparse
 from olsq.device import qcdevice
 from olsq import OLSQ
 import json
 import timeit
 from verify_olsq import Verifier
+from olsq import parser
 
-# run tests from the command line
+# run tests  from another script
 def get_nnGrid(n: int, swap_duration):
     my_coupling = []
     for i in range(n):
@@ -77,13 +78,13 @@ def get_device_by_name(name, swap_duration):
     return device
 
 # def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, commute, encoding, swap_bound = -1):
-def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, encoding, swap_bound = -1, output_mode = False):
+def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, encoding, output_mode, swap_bound = -1):
     lsqc_solver = OLSQ(obj_is_swap = obj_is_swap, mode=mode, encoding = encoding, swap_up_bound=swap_bound)
     lsqc_solver.setprogram(circuit_info)
     lsqc_solver.setdevice(device)
     start = timeit.default_timer()
     # result = lsqc_solver.solve(use_sabre, commute=commute, output_mode="IR")
-    if output_mode:
+    if output_mode == 'IR':
         result = lsqc_solver.solve(use_sabre, output_mode = "IR")
     else:
         result = lsqc_solver.solve(use_sabre)
@@ -92,83 +93,132 @@ def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, encoding
     print('Time: ', stop - start)  
     return result
 
-if __name__ == "__main__":
-    # Initialize parser
-    parser = argparse.ArgumentParser()
-    # Adding optional argument
-    parser.add_argument("--dt", dest='device_type', type=str,
-        help="grid, ourense, sycamore, rochester, tokyo, aspen-4, or eagle")
-    parser.add_argument("--d", dest='device', type=int,
-        help="device (x-by-x grid)")
-    parser.add_argument("--f", dest='folder', type=str, default='.',
-        help="the folder to store results")
-    parser.add_argument("--qf", dest="qasm", type=str,
-        help="Input file name")
-    parser.add_argument("--encoding", dest="encoding", type=int, default=1,
-        help="seqcounter = 1, sortnetwrk  = 2, cardnetwrk  = 3, totalizer   = 6, mtotalizer  = 7. kmtotalizer = 8, native = 9")
-    parser.add_argument("--sabre", action='store_true', default=False,
-        help="Use sabre to get SWAP upper bound")
-    parser.add_argument("--tran", action='store_true', default=False,
-        help="Use TB-OLSQ")
-    parser.add_argument("--swap", action='store_true', default=False,
-        help="Optimize SWAP")
-    # parser.add_argument("--all_commute", action='store_true', default=False,
-    #     help="All gates  are commute. e.g., qaoa")
-    parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
-        help="user define swap bound")
-    parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=1,
-        help="swap duration")
-    parser.add_argument("--IR_output", action='store_true', default=False,
-        help="user define output type")
-    # add the argument to verify the result
-    parser.add_argument("--check", action='store_true', default=False,
-        help="Verify the result")
-    # Read arguments from command line
+# def get_output(circuit_file, swap, mode_type, device_type, use_sabre, encoding, swap_duration, swap_bound, store, output_mode, device_size = 0, verify_result = False):
+def get_output(circuit_file, output_folder):
+    # process the input file and device information
+    circuit_info = open(circuit_file, "r").read()
+    # print(circuit_info)
+    parameters = parser.input_qasm(circuit_info)
+    # print(parameters)
+    if ('output_mode' not in parameters or 'objective' not in parameters or 'mode' not in parameters or 'device' not in parameters):
+        print(f"Inadequate parameters")
+        return
+    if parameters['device'] == 'grid' and 'device_size' not in parameters:
+        print(f"Missing grid size")
+        return
+    
+    swap_duration = int(parameters['swap_duration']) if 'swap_duration' in parameters else 1
+    use_sabre = True if ('sabre' in parameters and parameters['sabre'] == 'true') else False
+    encoding = 1 if 'encoding' not in parameters else int(parameters['encoding'])
+    swap_bound = int(parameters['swap_bound']) if 'swap_bound' in parameters else -1
+    verify_result = True if ('verify_result' in parameters and parameters['verify_result'] == 'true') else False
+    ground_truth = int(parameters['ground_truth']) if 'ground_truth' in parameters else -1
 
-    args = parser.parse_args()
-
-    circuit_info = open(args.qasm, "r").read()
-    if args.device_type == "grid":
-        device = get_nnGrid(args.device, args.swap_duration)
+    if parameters['device'] == "grid":
+        device = get_nnGrid(int(parameters['device_size']), swap_duration)
     else:
-        device = get_device_by_name(args.device_type, args.swap_duration)
-
+        device = get_device_by_name(parameters['device'], swap_duration)
+    
+    # process the storing position
     data = dict()
-    b_file = args.qasm.split('.')
+    b_file = circuit_file.split('.')
     b_file = b_file[-2]
     b_file = b_file.split('/')
     b_file = b_file[-1]
-    if args.IR_output:
-        file_name = args.folder+"/"+str(args.device_type)+"_"+b_file+".json"
-    else:
-        file_name = args.folder+"/"+str(args.device_type)+"_"+b_file+".qasm"
 
-    mode = "normal"
-    if args.tran:
-        mode = "transition"
-    # result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.all_commute, args.encoding)
-    result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.encoding, args.swap_bound, args.IR_output)
-    if args.IR_output:
-        data["device"] = str(args.device)
-        data["mode"] = mode
+    if parameters['output_mode'] == 'IR':
+        file_name = output_folder +"/"+str(parameters['device'])+"_"+b_file+".json"
+    else:
+        file_name = output_folder +"/"+str(parameters['device'])+"_"+b_file+".qasm"
+
+    # process the mode information
+    # mode = "normal"
+    # if mode_type:
+    #     mode = "transition"
+    
+    # generate the result
+    result = run_olsq_tbolsq(parameters['objective'], circuit_info, parameters['mode'], device, use_sabre, encoding,  parameters['output_mode'], swap_bound)
+
+    swap_obj = parameters['objective']
+    mode_obj = parameters['mode']
+    device_obj = parameters['device']
+    sabre_obj = 'used sabre' if use_sabre else 'did not use sabre'
+    swap_duration_obj = swap_duration
+    output_type = parameters['output_mode']
+
+    if parameters['output_mode'] == 'IR':
+        if parameters['device'] == 'grid':
+            data["device"] = str(parameters['device_size'])
+        data["mode"] = parameters['mode']
         data["depth"] = result[0]
         data["gate_spec"] = result[1]
         data["gate"] = result[2]
         data["final_mapping"] = result[3]
         data["initial_mapping"] = result[4]
-        if args.check:
+        if int(data["depth"]) == ground_truth:
+            ground_truth_str = "; Our resulting depth matches the known ground truth"
+        else:
+            ground_truth_str = "; The resulting depth is not equal to known ground truth"
+        data["info"] = "Our objective is " + swap_obj + "; Mode is " + mode_obj + "; Device is " + device_obj + "; We " + sabre_obj + "; Swap duarion is " + str(swap_duration) + "; And the output mode is " + output_type + ground_truth_str
+        if verify_result:
             verifier = Verifier()
             data["verified_result"] = verifier.verify_result(circuit_info, result, device)
     
         with open(file_name, 'w') as file_object:
             json.dump(data, file_object, default=int)
     else:
-        if args.check:
+        count = int(parser.input_qasm(result[0]))
+        count = count + 1
+        # print(count)
+        if count == ground_truth:
+            ground_truth_str = "\n// Our resulting depth matches the known ground truth"
+        else:
+            ground_truth_str = "\n// The resulting depth is not equal to known ground truth"
+        if verify_result:
             verifier = Verifier()
             check_result = verifier.verify_result(circuit_info, result, device)
+            check_result_str = "\n// The check result is " + str(check_result)
+        else:
+            check_result_str = ""
         with open(file_name, 'w') as file_object:
-            if not args.check:
-                file_object.write(result[0])
-            else:
-                verify_result = "The check result is " + str(check_result)
-                file_object.write(result[0] + "\n" + verify_result)
+            info = "\n// Swap objective is " + swap_obj + "\n// Mode is " + mode_obj + "\n// Device is " + device_obj + "\n// We " + sabre_obj + "\n// Swap duarion is " + str(swap_duration) + "\n// And the output mode is " + output_type + check_result_str + ground_truth_str
+            # if not verify_result:
+            #     file_object.write(result[0] + info)
+                # verify_result = "// The check result is " + str(check_result)
+            file_object.write(result[0] + info)
+
+
+
+# if __name__ != "__main__":
+    # Initialize parser
+    # parser = argparse.ArgumentParser()
+    # # Adding optional argument
+    # parser.add_argument("--dt", dest='device_type', type=str,
+    #     help="grid, ourense, sycamore, rochester, tokyo, aspen-4, or eagle")
+    # parser.add_argument("--d", dest='device', type=int,
+    #     help="device (x-by-x grid)")
+    # parser.add_argument("--f", dest='folder', type=str, default='.',
+    #     help="the folder to store results")
+    # parser.add_argument("--qf", dest="qasm", type=str,
+    #     help="Input file name")
+    # parser.add_argument("--encoding", dest="encoding", type=int, default=1,
+    #     help="seqcounter = 1, sortnetwrk  = 2, cardnetwrk  = 3, totalizer   = 6, mtotalizer  = 7. kmtotalizer = 8, native = 9")
+    # parser.add_argument("--sabre", action='store_true', default=False,
+    #     help="Use sabre to get SWAP upper bound")
+    # parser.add_argument("--tran", action='store_true', default=False,
+    #     help="Use TB-OLSQ")
+    # parser.add_argument("--swap", action='store_true', default=False,
+    #     help="Optimize SWAP")
+    # # parser.add_argument("--all_commute", action='store_true', default=False,
+    # #     help="All gates  are commute. e.g., qaoa")
+    # parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
+    #     help="user define swap bound")
+    # parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=1,
+    #     help="swap duration")
+    # parser.add_argument("--IR_output", action='store_true', default=False,
+    #     help="user define output type")
+    # # add the argument to verify the result
+    # parser.add_argument("--check", action='store_true', default=False,
+    #     help="Verify the result")
+    # Read arguments from command line
+    # result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.all_commute, args.encoding)

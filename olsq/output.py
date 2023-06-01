@@ -55,4 +55,5 @@ def output_qasm(device: qcdevice, result_depth: int,
         output_file = open(file_name, "w")
         output_file.write(output_str)
 
+    # add the verifying result inside the qasm itself
     return output_str
