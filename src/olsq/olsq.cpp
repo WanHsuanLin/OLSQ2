@@ -10,6 +10,8 @@
 ***********************************************************************/
 #include "olsq/olsq.hpp"
 
+// TODO: add restricted qubit region: (1) if keeping unsat, relax region. (2) transforming constraint. (3) swap constraint,
+
 OLSQ_NAMESPACE_CPP_START
 
 void OLSQ::setDependency(vector<pair<unsigned_t, unsigned_t> >& vDependencies){
