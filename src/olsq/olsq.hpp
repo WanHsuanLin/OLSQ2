@@ -27,7 +27,7 @@ OLSQ_NAMESPACE_HPP_START
 class OLSQ{
     public:
         OLSQ(Circuit& cir, Device& device)
-        : _pCircuit(&cir), _device(device), _swapIdx(cir.nGate()), _verbose(2){
+        : _pCircuit(&cir), _device(device), _swapIdx(cir.nGate()), _verbose(2), _outputQASMFile("out.qasm"){
             // cout << "+++++++++++++++++++++=" << &cir << endl;
             // cout << "+++++++++++++++++++++=" << _pCircuit << endl;
             _vpGateDependency.clear();
@@ -154,6 +154,7 @@ class OLSQ{
         unsigned_t                              _swapIdx;
         unsigned_t                              _verbose;
         vector<pair<unsigned_t, unsigned_t> >   _vpGateTimeWindow; // pair<start time, end time>
+        string                                  _outputQASMFile;
     ////////////////////////////
     // Private functions
     ////////////////////////////

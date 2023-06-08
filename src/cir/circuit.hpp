@@ -68,8 +68,7 @@ class Circuit
         Gate&              swapGate(unsigned_t idx)                     { assert(isValidSwapGateIdx(idx)); return _vSwapGate[idx]; }
         int_t              initialMapping(unsigned_t idx)         const { assert(isValidQubitIdx(idx)); return _vInitialMapping[idx]; }
         int_t              finalMapping(unsigned_t idx)           const { assert(isValidQubitIdx(idx)); return _vFinalMapping[idx]; }
-        void               qasm(string const & fileName);
-        string             qasmstr();
+
         // set function
         void setQubitNum(unsigned_t n) { _nProgramQubit = n; _vsQubitRegion.clear(); _vsQubitRegion.resize(_nProgramQubit); }
         void constructDependency();

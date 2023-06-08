@@ -30,8 +30,6 @@ PYBIND11_MODULE(olsqpyb, m) {
         //     }
         //     return self.setInitialMapping(vInitialMapping); 
         // }, "Set initial mapping")
-        .def("qasm", &Circuit::qasm, "Print circuit information")
-        .def("qasmstr", &Circuit::qasmstr, "Print circuit information")
         .def("printCircuit", &Circuit::printCircuit, "Print circuit information")
         .def("printCircuitLayout", &Circuit::printCircuitLayout, "Print compiled circuit information");
     m.def("setMappingRegion", [](Circuit& self, pybind11::list pyMappingRegion){
