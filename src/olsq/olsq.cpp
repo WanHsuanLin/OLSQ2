@@ -84,18 +84,19 @@ void OLSQ::runSMT(){
 }
 
 void OLSQ::generateFormulationZ3(){
+    unsigned_t begin = 0, end = _olsqParam.min_depth;
     fprintf(stdout, "[Info]          constructing variables                       \n");
     constructVariableZ3();
     fprintf(stdout, "[Info]          constructing injective mapping constraint    \n");
-    addInjectiveMappingConstraintsZ3();
+    addInjectiveMappingConstraintsZ3(begin, end);
     fprintf(stdout, "[Info]          constructing valid two-qubit gate constraint \n");
-    addValidTwoQubitGateConstraintsZ3();
+    addValidTwoQubitGateConstraintsZ3(begin, end);
     fprintf(stdout, "[Info]          constructing dependency constraint           \n");
     addDependencyConstraintsZ3();
     fprintf(stdout, "[Info]          constructing swap overlapping constraint     \n");
-    addSwapConstraintsZ3();
+    addSwapConstraintsZ3(_olsqParam.swap_duration -1, end);
     fprintf(stdout, "[Info]          constructing mapping transformation constraint\n");
-    addTransformationConstraintsZ3();
+    addTransformationConstraintsZ3(begin, end);
 }
 
 void OLSQ::constructVariableZ3(){
@@ -143,7 +144,8 @@ void OLSQ::addInjectiveMappingConstraintsZ3(unsigned_t begin, unsigned_t end){
     const BitwuzlaSort *sortbvpi = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_device.nQubit() + 1)));
     const BitwuzlaTerm * zero = bitwuzla_mk_bv_zero(_smt.pSolver, sortbvpi);
     const BitwuzlaTerm * nqubit = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvpi, _device.nQubit());
-    vector<set<int_t>> * pvsQubitRegion = _pCircuit->getQubitRegion();
+    vector<set<int_t>> * pvsQubitRegion = _pCircuit->pvQubitRegion();
+    set<int>::iterator it;
     if(_olsqParam.is_given_mapping_region){
         for (j = 0; j < _pCircuit->nProgramQubit(); ++j){
             for (i = begin; i < end; ++i){
@@ -170,6 +172,7 @@ void OLSQ::addInjectiveMappingConstraintsZ3(unsigned_t begin, unsigned_t end){
                 }
             }
         }
+    }
     else{
         for (i = begin; i < end; ++i){
             for (j = 0; j < _pCircuit->nProgramQubit(); ++j){
@@ -183,12 +186,11 @@ void OLSQ::addInjectiveMappingConstraintsZ3(unsigned_t begin, unsigned_t end){
     }
 }
 
-void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
+void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsigned_t end){
     Gate gate;
     Edge edge;
     unsigned_t i, t, j;
-    unsigned_t begin = 0, end = _olsqParam.min_depth;
-    vector<set<int_t>> * pvsQubitRegion = _pCircuit->getQubitRegion();
+    vector<set<int_t>> * pvsQubitRegion = _pCircuit->pvQubitRegion();
     const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_olsqParam.max_depth)));
     const BitwuzlaSort *sortbvpi = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_device.nQubit() + 1)));
     for ( i = 0; i < _pCircuit->nGate();  ++i ){
@@ -209,13 +211,13 @@ void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
                     const BitwuzlaTerm *pro1EqPhy1, *pro2EqPhy2, *cond;
                     for (int_t j : (*pvsQubitRegion)[gate.targetProgramQubit(0)]){
                         for (int_t k : (*pvsQubitRegion)[gate.targetProgramQubit(1)]){
-                            if(_device->isAdjacent(j, k)){
+                            if(_device.isAdjacent(j, k)){
                                 const BitwuzlaTerm * q1Bv = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvpi, j);
                                 const BitwuzlaTerm * q2Bv = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvpi, k);
                                 pro1EqPhy1 = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[t][gate.targetProgramQubit(0)], q1Bv);
                                 pro2EqPhy2 = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[t][gate.targetProgramQubit(1)], q2Bv);
                                 cond = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_AND, pro1EqPhy1, pro2EqPhy2);
-                                clause = bitwuzla_mk_term3(_smt.pSolver, BITWUZLA_KIND_OR, clause, cond);
+                                clause = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_OR, clause, cond);
                             }
                         }
                     }
@@ -264,12 +266,12 @@ void OLSQ::addDependencyConstraintsZ3(){
     }
 }
 
-void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset){
+void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsigned_t end){
     // No swap for t<s
     unsigned_t i, j, t, e, tt, q1, q2;
     Qubit qubit;
     unsigned_t bound = (_olsqParam.swap_duration < _olsqParam.max_depth) ? _olsqParam.swap_duration - 1 : _olsqParam.max_depth;
-    unsigned_t begin = _olsqParam.swap_duration -1, end = _olsqParam.min_depth;
+    // unsigned_t begin = _olsqParam.swap_duration -1, end = _olsqParam.min_depth;
     if(boundOffset > 0){
         begin = end;
         end += boundOffset;
@@ -369,9 +371,8 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset){
     }
 }
 
-void OLSQ::addTransformationConstraintsZ3(unsigned_t boundOffset){
+void OLSQ::addTransformationConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsigned_t end){
     unsigned_t i, j, t, e, nSpanEdge;
-    unsigned_t begin = _olsqParam.swap_duration -1, end = _olsqParam.min_depth;
     if(boundOffset > 0){
         begin = end;
         end += boundOffset;
@@ -694,8 +695,8 @@ void OLSQ::extractModel(){
             if (stoi(s, nullptr, 2)){
                 swapTargetQubit[0] = _device.edge(e).qubitId1();
                 swapTargetQubit[1] = _device.edge(e).qubitId2();
-                _pCircuit->addSwapGate(swapTargetQubit, _olsqParam.swap_duration);
-                swapId = _pCircuit->nSwapGate() - 1;
+                swapId = _pCircuit->nSwapGate();
+                _pCircuit->addSwapGate(swapId, swapTargetQubit, _olsqParam.swap_duration);
                 Gate & gate = _pCircuit->swapGate(swapId);
                 gate.setExecutionTime(t);
                 if (_verbose > 0){
@@ -867,7 +868,7 @@ void OLSQ::constructGateTimeWindow(){
 }
 
 void OLSQ::updateGateTimeWindow(unsigned_t d){
-    for(int_t i = 0; i < _vpGateTimeWindow; ++i){
+    for(int_t i = 0; i < _vpGateTimeWindow.size(); ++i){
         _vpGateTimeWindow[i].second += d;
     }
     printGateTimeWindow();
@@ -878,14 +879,14 @@ void OLSQ::printGateTimeWindow(){
     fprintf(stdout, "       ------------------------------------------\n");
     fprintf(stdout, "       - Min depth: %d                           \n", _olsqParam.min_depth);
     fprintf(stdout, "       - Gate time window:\n");
-    for ( i = 0; i < _vpGateTimeWindow.size();  ++i ){
+    for (unsigned_t i = 0; i < _vpGateTimeWindow.size();  ++i ){
         fprintf(stdout, "        - Gate %d: [%d, %d]\n", i, _vpGateTimeWindow[i].first, _vpGateTimeWindow[i].second);
     }
 }
 
 
 void OLSQ::collectQubitRegion(){
-    for(unsigned_t i = 0; i < _circuit.nProgramQubit(); ++i){
+    for(unsigned_t i = 0; i < _pCircuit->nProgramQubit(); ++i){
         // collect circuit qubit in the current device
         bfsSearch(i);
     }
@@ -902,7 +903,7 @@ void OLSQ::bfsSearch(unsigned_t q){
     // }
     // return;
     map<int_t, int_t> mQubitPathLength;
-    set<int_t>& sQubitRegion = _circuit.qubitRegion(q);
+    set<int_t>& sQubitRegion = _pCircuit->qubitRegion(q);
     set<int_t>::iterator it = sQubitRegion.begin();
     ++it;
     for (; it != sQubitRegion.end(); ++it) {
@@ -988,7 +989,7 @@ void OLSQ::expandRegion(unsigned_t q){
     unsigned_t nSpanEdge;
     int_t p;
     set<int_t> sExpandQubit;
-    set<int_t>& sQubitRegion = _circuit.qubitRegion(q);
+    set<int_t>& sQubitRegion = _pCircuit->qubitRegion(q);
     for(unsigned_t i = 0; i < sQubitRegion.size(); ++i){
         set<int_t>::iterator it;
         sExpandQubit.clear();
@@ -1000,8 +1001,79 @@ void OLSQ::expandRegion(unsigned_t q){
                 sExpandQubit.insert(i);
             }
         }
-        _circuit.addQubitRegion(q, sExpandQubit);
+        _pCircuit->addQubitRegion(q, sExpandQubit);
     }
+}
+
+void OLSQ::outputQASM(string const & fileName){
+    vector< vector<unsigned_t> > vvTimeGate(_pCircuit->circuitDepth(), vector<unsigned_t>());
+    Gate gate;
+    unsigned_t i, t, qId, j;
+    string line;
+    for (i = 0; i < _pCircuit->nGate(); ++i){
+        Gate & gate = _pCircuit->gate(i);
+        vvTimeGate[gate.executionTime()].emplace_back(i);
+    }
+        for (i = 0; i < _pCircuit->nSwapGate(); ++i){
+        Gate & gate = _pCircuit->swapGate(i);
+        vvTimeGate[gate.executionTime()].emplace_back(i);
+    }
+    line = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + to_string(_device.nQubit()) + "];\ncreg c[" + to_string(_device.nQubit()) + "];\n";
+    for (t = 0; t < _pCircuit->circuitDepth(); ++t){
+        for (i = 0; i < vvTimeGate[t].size(); ++i){
+            if (vvTimeGate[t][i] < _pCircuit->nGate()){
+                gate = _pCircuit->gate(vvTimeGate[t][i]);
+            }
+            else{
+                gate = _pCircuit->swapGate(vvTimeGate[t][i] - _pCircuit->nGate());
+            }
+            
+            if (gate.nTargetQubit() == 1){
+                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "];\n";
+            }
+            else{
+                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "], q[" + to_string(gate.targetPhysicalQubit(1)) + "];\n";
+            }
+        }
+    }
+    FILE* fout = fopen(fileName.c_str(), "w");
+    fprintf(fout, "%s", line.c_str());
+    fclose(fout);
+}
+
+
+string OLSQ::outputQASMStr(){
+    vector< vector<unsigned_t> > vvTimeGate(_pCircuit->circuitDepth(), vector<unsigned_t>());
+    Gate gate;
+    unsigned_t i, t, qId, j;
+    string line;
+    for (i = 0; i < _pCircuit->nGate(); ++i){
+        Gate & gate = _pCircuit->gate(i);
+        vvTimeGate[gate.executionTime()].emplace_back(i);
+    }
+        for (i = 0; i < _pCircuit->nSwapGate(); ++i){
+        Gate & gate = _pCircuit->swapGate(i);
+        vvTimeGate[gate.executionTime()].emplace_back(i);
+    }
+    line = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + to_string(_device.nQubit()) + "];\ncreg c[" + to_string(_device.nQubit()) + "];\n";
+    for (t = 0; t < _pCircuit->circuitDepth(); ++t){
+        for (i = 0; i < vvTimeGate[t].size(); ++i){
+            if (vvTimeGate[t][i] < _pCircuit->nGate()){
+                gate = _pCircuit->gate(vvTimeGate[t][i]);
+            }
+            else{
+                gate = _pCircuit->swapGate(vvTimeGate[t][i] - _pCircuit->nGate());
+            }
+            
+            if (gate.nTargetQubit() == 1){
+                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "];\n";
+            }
+            else{
+                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "], q[" + to_string(gate.targetPhysicalQubit(1)) + "];\n";
+            }
+        }
+    }
+    return line.c_str();
 }
 
 OLSQ_NAMESPACE_CPP_END

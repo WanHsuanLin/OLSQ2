@@ -13,9 +13,10 @@
 
 #include "misc/global.hpp"
 #include "cir/gate.hpp"
+#include <set>
 
 
-MOLSQ_NAMESPACE_HPP_START
+OLSQ_NAMESPACE_HPP_START
 
 class Circuit
 {
@@ -90,7 +91,10 @@ class Circuit
         // void addGate( string const & gateName, vector<int_t> const & vTargetQubit, unsigned_t duration = 1);
         void addSwapGate(unsigned_t idx, vector<unsigned_t> const & vTargetQubit, unsigned_t duration = 1);
         void addQubitRegion(unsigned_t idx, int_t q)            { _vsQubitRegion[idx].insert(q); }
-        void addQubitRegion(unsigned_t idx, set<unsigned>& s)   { _vsQubitRegion[idx].merge(s); }
+        void addQubitRegion(unsigned_t idx, set<int_t>& s)   { 
+            for(int_t i : s)
+                _vsQubitRegion[idx].insert(i); 
+        }
         void setInitialMapping(int_t pro_q, int_t phy_q)        { _vInitialMapping[pro_q] = phy_q; }
         void setInitialMapping(vector<unsigned_t> const &  vInitialMapping);
         void setFinalMapping(int_t pro_q, int_t phy_q)          { _vFinalMapping[pro_q] = phy_q; }
@@ -102,16 +106,16 @@ class Circuit
         }
         void resetsetQubitRegion()                              { _vsQubitRegion.clear(); _vsQubitRegion.resize(_nProgramQubit); }
         void resetsetQubitRegion(unsigned_t i)                  { _vsQubitRegion[i].clear(); }
-        void setQubitRegion(vector<set<unsigned_t> >& vsQubitRegion){
+        void setQubitRegion(vector<set<int_t> >& vsQubitRegion){
             _vsQubitRegion.clear();
-            for (set<unsigned_t>& s : vsQubitRegion){
+            for (set<int_t>& s : vsQubitRegion){
                 _vsQubitRegion.emplace_back(s);
             }
         }
         void setCircuitDepth(int_t t)                           { _circuitDepth = t; }
 
         vector<pair<unsigned_t, unsigned_t> >* pvpGateDependency()       { return &_vpGateDependency; };
-        vector<set<int_t>>*                    pQubitRegion()             { return &_vsQubitRegion; };
+        vector<set<int_t>>*                    pvQubitRegion()             { return &_vsQubitRegion; };
         set<int_t>&                            qubitRegion(unsigned_t i) { return _vsQubitRegion[i]; };
 
         void clearSwap()                                        { _vSwapGate.clear(); }
@@ -137,6 +141,6 @@ class Circuit
         vector<set<int_t>>           _vsQubitRegion;
 };
 
-MOLSQ_NAMESPACE_HPP_END
+OLSQ_NAMESPACE_HPP_END
 
 #endif // CIRCUIT_HPP

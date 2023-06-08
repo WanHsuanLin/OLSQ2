@@ -10,7 +10,7 @@
 ***********************************************************************/
 #include "cir/circuit.hpp"
 
-MOLSQ_NAMESPACE_CPP_START
+OLSQ_NAMESPACE_CPP_START
 
 void Circuit::addGate( string const & gateName, vector<unsigned_t> const & vTargetQubit, unsigned_t duration){
     unsigned_t idx = _vGate.size();
@@ -27,7 +27,7 @@ void Circuit::addSwapGate(unsigned_t swapIdx, vector<unsigned_t> const & vTarget
     for(i = 0; i < vTargetQubit.size(); ++i){
         // assert(isValidQubitIdx(vTargetQubit[i]));
         _vSwapGate[idx].addTargetProgramQubit(vTargetQubit[i]);
-        _vSwapGate[idx].setTargetPhysicalQubit(i, vTargetQubit[i]);
+        _vSwapGate[idx].addTargetPhysicalQubit(i, vTargetQubit[i]);
     }
 }
 
@@ -158,77 +158,8 @@ void Circuit::printDependency(){
     }
 }
 
-void Circuit::qasm(string const & fileName){
-    vector< vector<unsigned_t> > vvTimeGate(_pCircuit->circuitDepth(), vector<unsigned_t>());
-    Gate gate;
-    unsigned_t i, t, qId, j;
-    string line;
-    for (i = 0; i < _pCircuit->nGate(); ++i){
-        Gate & gate = _pCircuit->gate(i);
-        vvTimeGate[gate.executionTime()].emplace_back(i);
-    }
-        for (i = 0; i < _pCircuit->nSwapGate(); ++i){
-        Gate & gate = _pCircuit->swapGate(i);
-        vvTimeGate[gate.executionTime()].emplace_back(i);
-    }
-    line = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + to_string(_device.nQubit()) + "];\ncreg c[" + to_string(_device.nQubit()) + "];\n";
-    for (t = 0; t < _pCircuit->circuitDepth(); ++t){
-        for (i = 0; i < vvTimeGate[t].size(); ++i){
-            if (vvTimeGate[t][i] < _pCircuit->nGate()){
-                gate = _pCircuit->gate(vvTimeGate[t][i]);
-            }
-            else{
-                gate = _pCircuit->swapGate(vvTimeGate[t][i] - _pCircuit->nGate());
-            }
-            
-            if (gate.nTargetQubit() == 1){
-                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "];\n";
-            }
-            else{
-                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "], q[" + to_string(gate.targetPhysicalQubit(1)) + "];\n";
-            }
-        }
-    }
-    FILE* fout = fopen(fileName.c_str(), "w");
-    fprintf(fout, "%s", line.c_str());
-    fclose(fout);
-}
-
-
-string Circuit::qasm(){
-    vector< vector<unsigned_t> > vvTimeGate(_pCircuit->circuitDepth(), vector<unsigned_t>());
-    Gate gate;
-    unsigned_t i, t, qId, j;
-    string line;
-    for (i = 0; i < _pCircuit->nGate(); ++i){
-        Gate & gate = _pCircuit->gate(i);
-        vvTimeGate[gate.executionTime()].emplace_back(i);
-    }
-        for (i = 0; i < _pCircuit->nSwapGate(); ++i){
-        Gate & gate = _pCircuit->swapGate(i);
-        vvTimeGate[gate.executionTime()].emplace_back(i);
-    }
-    line = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + to_string(_device.nQubit()) + "];\ncreg c[" + to_string(_device.nQubit()) + "];\n";
-    for (t = 0; t < _pCircuit->circuitDepth(); ++t){
-        for (i = 0; i < vvTimeGate[t].size(); ++i){
-            if (vvTimeGate[t][i] < _pCircuit->nGate()){
-                gate = _pCircuit->gate(vvTimeGate[t][i]);
-            }
-            else{
-                gate = _pCircuit->swapGate(vvTimeGate[t][i] - _pCircuit->nGate());
-            }
-            
-            if (gate.nTargetQubit() == 1){
-                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "];\n";
-            }
-            else{
-                line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "], q[" + to_string(gate.targetPhysicalQubit(1)) + "];\n";
-            }
-        }
-    }
-    return fileName.c_str();
-}
 
 
 
-MOLSQ_NAMESPACE_CPP_END
+
+OLSQ_NAMESPACE_CPP_END

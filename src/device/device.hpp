@@ -16,8 +16,23 @@
 #include <unordered_set>
 #include <deque>
 
-MOLSQ_NAMESPACE_HPP_START
+OLSQ_NAMESPACE_HPP_START
 
+struct pair_hash {
+    template <class T1, class T2>
+    size_t operator()(const pair<T1, T2>& p) const
+    {
+        auto hash1 = hash<T1>{}(p.first);
+        auto hash2 = hash<T2>{}(p.second);
+ 
+        if (hash1 != hash2) {
+            return hash1 ^ hash2;             
+        }
+         
+        // If hash1 == hash2, their XOR is zero.
+          return hash1;
+    }
+};
 
 ////////////////////////////
 // Struct Qubit
@@ -142,6 +157,6 @@ class Device{
 };
 
 
-MOLSQ_NAMESPACE_HPP_END
+OLSQ_NAMESPACE_HPP_END
 
 #endif //DEVICE_HPP

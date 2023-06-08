@@ -58,7 +58,6 @@ class OLSQ{
             _olsqParam.is_given_depth = true;
             _olsqParam.max_depth = max_depth;
             _olsqParam.min_depth = min_depth;
-            _olsqParam.min_depth_expand_step = 1;
             _olsqParam.max_depth_expand_factor = 2;
         }
         void initializeNormalMode(unsigned_t max_depth = 0, unsigned_t min_depth = 0){
@@ -76,12 +75,14 @@ class OLSQ{
                 _olsqParam.max_depth = max_depth;
             }
             _olsqParam.max_depth = max_depth;
-            _olsqParam.min_depth_expand_step = 5;
             _olsqParam.max_depth_expand_factor = 2;
         }
         void run(string const & fileName);
         void setDependency(vector<pair<unsigned_t, unsigned_t> > & vDependencies);
         void printDependency();
+
+        void outputQASM(string const & fileName);
+        string outputQASMStr();
     
     ////////////////////////////
     // Struct OLSQParam
@@ -161,11 +162,11 @@ class OLSQ{
 
         void generateFormulationZ3();
         void constructVariableZ3();
-        void addInjectiveMappingConstraintsZ3(unsigned_t begin = 0, unsigned_t end = _olsqParam.min_depth);
-        void addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset = 0); // if boundOffset > 0, it means we increase min_depth so we need to add constraints for partial t
+        void addInjectiveMappingConstraintsZ3(unsigned_t begin = 0, unsigned_t end = 1);
+        void addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset = 0, unsigned_t begin = 0, unsigned_t end = 1); // if boundOffset > 0, it means we increase min_depth so we need to add constraints for partial t
         void addDependencyConstraintsZ3();
-        void addSwapConstraintsZ3(unsigned_t boundOffset = 0);
-        void addTransformationConstraintsZ3(unsigned_t boundOffset = 0);
+        void addSwapConstraintsZ3(unsigned_t boundOffset = 0, unsigned_t begin = 0, unsigned_t end = 1);
+        void addTransformationConstraintsZ3(unsigned_t boundOffset = 0, unsigned_t begin = 0, unsigned_t end = 1);
         void addDepthConstraintsZ3();
         void addSwapCountConstraintsZ3(unsigned_t bound);
         bool checkModel();
@@ -195,7 +196,7 @@ class OLSQ{
         void printGateTimeWindow();
 
         void collectQubitRegion();
-        void bfsSearch();
+        void bfsSearch(unsigned_t q);
         void expandRegion(unsigned_t q);
 };
 OLSQ_NAMESPACE_HPP_END

@@ -10,7 +10,7 @@
 ***********************************************************************/
 #include "device/device.hpp"
 
-MOLSQ_NAMESPACE_CPP_START
+OLSQ_NAMESPACE_CPP_START
 
 void Device::constructQubit(){
     _vQubit.clear();
@@ -146,4 +146,4 @@ void Device::calAPSP(){
 
 
 
-MOLSQ_NAMESPACE_CPP_END
+OLSQ_NAMESPACE_CPP_END

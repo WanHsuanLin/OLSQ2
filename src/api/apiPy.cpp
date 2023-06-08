@@ -35,12 +35,12 @@ PYBIND11_MODULE(olsqpyb, m) {
         .def("printCircuit", &Circuit::printCircuit, "Print circuit information")
         .def("printCircuitLayout", &Circuit::printCircuitLayout, "Print compiled circuit information");
     m.def("setMappingRegion", [](Circuit& self, pybind11::list pyMappingRegion){
-        vector<set<unsigned_t> > vsMappingRegion;
+        vector<set<int_t> > vsMappingRegion;
         for (py::handle item : pyMappingRegion){
-            vsMappingRegion.emplace_back(item.cast<set<unsigned_t>>());
+            vsMappingRegion.emplace_back(item.cast<set<int_t>>());
         }
         vsMappingRegion.resize(self.nProgramQubit());
-        return self.setMappingRegion(vsMappingRegion); 
+        return self.setQubitRegion(vsMappingRegion); 
     }, "Set mapping region for circuit");
 
     m.def("addGate", [](Circuit& self, const string& gateName, pybind11::list pyTargetQubit, unsigned_t duration){

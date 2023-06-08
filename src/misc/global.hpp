@@ -18,7 +18,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
-
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -50,7 +50,7 @@ OLSQ_NAMESPACE_HPP_START
 ///                         BASIC TYPES                              ///
 ////////////////////////////////////////////////////////////////////////
 
-// constexpr unsigned  MAX_UNSIGNED =  numeric_limits<unsigned>::max()     / 3;
+constexpr unsigned  MAX_UNSIGNED =  numeric_limits<unsigned>::max()     / 3;
 // constexpr int       MAX_INT      =  numeric_limits<int>::max()          / 3;
 // constexpr int       MIN_INT      =  numeric_limits<int>::lowest()       / 3;
 // constexpr size_t    MAX_SIZE_T   =  numeric_limits<size_t>::max()       / 3;
