@@ -85,19 +85,18 @@ void OLSQ::runSMT(){
 }
 
 void OLSQ::generateFormulationZ3(){
-    unsigned_t begin = 0, end = _olsqParam.min_depth;
     fprintf(stdout, "[Info]          constructing variables                       \n");
     constructVariableZ3();
     fprintf(stdout, "[Info]          constructing injective mapping constraint    \n");
-    addInjectiveMappingConstraintsZ3(begin, end);
+    addInjectiveMappingConstraintsZ3();
     fprintf(stdout, "[Info]          constructing valid two-qubit gate constraint \n");
-    addValidTwoQubitGateConstraintsZ3(begin, end);
+    addValidTwoQubitGateConstraintsZ3();
     fprintf(stdout, "[Info]          constructing dependency constraint           \n");
     addDependencyConstraintsZ3();
     fprintf(stdout, "[Info]          constructing swap overlapping constraint     \n");
-    addSwapConstraintsZ3(_olsqParam.swap_duration -1, end);
+    addSwapConstraintsZ3();
     fprintf(stdout, "[Info]          constructing mapping transformation constraint\n");
-    addTransformationConstraintsZ3(begin, end);
+    addTransformationConstraintsZ3();
 }
 
 void OLSQ::constructVariableZ3(){
@@ -139,8 +138,13 @@ void OLSQ::constructVariableZ3(){
 
 }
 
-void OLSQ::addInjectiveMappingConstraintsZ3(unsigned_t begin, unsigned_t end){
+void OLSQ::addInjectiveMappingConstraintsZ3(unsigned_t boundOffset){
     unsigned_t i, j, k, qId;
+    unsigned_t end = _olsqParam.min_depth, begin = 0;
+    if(boundOffset > 0){
+        begin = end;
+        end += boundOffset;
+    }
     int_t pId;
     const BitwuzlaSort *sortbvpi = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_device.nQubit() + 1)));
     const BitwuzlaTerm * zero = bitwuzla_mk_bv_zero(_smt.pSolver, sortbvpi);
@@ -187,23 +191,28 @@ void OLSQ::addInjectiveMappingConstraintsZ3(unsigned_t begin, unsigned_t end){
     }
 }
 
-void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsigned_t end){
+void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
     Gate gate;
     Edge edge;
     unsigned_t i, t, j;
     vector<set<int_t>> * pvsQubitRegion = _pCircuit->pvQubitRegion();
+    unsigned_t end = _olsqParam.min_depth, begin = 0;
     const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_olsqParam.max_depth)));
     const BitwuzlaSort *sortbvpi = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_device.nQubit() + 1)));
+    if(boundOffset > 0){
+        begin = end;
+        end += boundOffset;
+    }
     for ( i = 0; i < _pCircuit->nGate();  ++i ){
         Gate & gate = _pCircuit->gate(i);
         if ((gate).nTargetQubit() == 2){
             if(_olsqParam.use_window_range_for_gate){
                 begin = _vpGateTimeWindow[i].first;
                 end = _vpGateTimeWindow[i].second + 1;
-            }
-            if(boundOffset > 0){
-                begin = end;
-                end += boundOffset;
+                if(boundOffset > 0){
+                    begin = end;
+                    end += boundOffset;
+                }
             }
             for (t = begin; t < end; ++t){
                 const BitwuzlaTerm * bvt = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvtime, t);
@@ -267,10 +276,11 @@ void OLSQ::addDependencyConstraintsZ3(){
     }
 }
 
-void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsigned_t end){
+void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset){
     // No swap for t<s
     unsigned_t i, j, t, e, tt, q1, q2;
     Qubit qubit;
+    unsigned_t end = _olsqParam.min_depth, begin = 0;
     unsigned_t bound = (_olsqParam.swap_duration < _olsqParam.max_depth) ? _olsqParam.swap_duration - 1 : _olsqParam.max_depth;
     // unsigned_t begin = _olsqParam.swap_duration -1, end = _olsqParam.min_depth;
     if(boundOffset > 0){
@@ -282,6 +292,7 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsign
             bitwuzla_assert(_smt.pSolver, bitwuzla_mk_term1(_smt.pSolver, BITWUZLA_KIND_NOT, _smt.vvSigma[i][j]));
         }
     }
+    // cout << "begin: " << begin << ", end: " << end << endl;
     // swap gates can not overlap with swap in space
     for (t = begin; t < end; ++t){
         for (e = 0; e < _device.nEdge(); ++e){
@@ -315,7 +326,7 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsign
         const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_olsqParam.max_depth)));
         const BitwuzlaSort *sortbvpi = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_device.nQubit() + 1)));
         // swap gates can not overlap with swap in time
-        for (t = _olsqParam.swap_duration -1; t < _olsqParam.max_depth; ++t){
+        for (t = begin; t < end; ++t){
             for (e = 0; e < _device.nEdge(); ++e){
                 for (tt = t - _olsqParam.swap_duration + 1; tt < t; ++tt){
                     bitwuzla_assert(_smt.pSolver, 
@@ -331,10 +342,6 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsign
             if(_olsqParam.use_window_range_for_gate){
                 begin = _vpGateTimeWindow[i].first;
                 end = _vpGateTimeWindow[i].second + 1;
-            }
-            if(boundOffset > 0){
-                begin = end;
-                end += boundOffset;
             }
             for (t = begin; t < end; ++t){
                 for (e = 0; e < _device.nEdge(); ++e){
@@ -376,8 +383,9 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsign
     }
 }
 
-void OLSQ::addTransformationConstraintsZ3(unsigned_t boundOffset, unsigned_t begin, unsigned_t end){
+void OLSQ::addTransformationConstraintsZ3(unsigned_t boundOffset){
     unsigned_t i, j, t, e, nSpanEdge;
+    unsigned_t end = _olsqParam.min_depth, begin = 0;
     if(boundOffset > 0){
         begin = end;
         end += boundOffset;
@@ -530,7 +538,7 @@ bool OLSQ::optimizeDepth(){
         step = 1;
     }
     else{
-        step = (_olsqParam.min_depth > 100) ? 10 : 5;
+        step = (_olsqParam.min_depth > 100) ? 10 : 1;
     }
     // FILE *ptr = fopen("constraint.txt","w");
     // bitwuzla_dump_formula(_smt.pSolver, "smt2", ptr);
@@ -568,10 +576,12 @@ bool OLSQ::optimizeDepth(){
         }
         else{
             bitwuzla_pop(_smt.pSolver, 1);
+            if(_olsqParam.min_depth + step < _olsqParam.max_depth){
+                updateSMT(step);
+                if(step > 1)
+                    has_jump = true;
+            }
             _olsqParam.min_depth += step;
-            updateSMT(step);
-            if(step > 1)
-                has_jump = true;
         }
     }
     if (find_min_depth){
@@ -840,9 +850,16 @@ void OLSQ::printDependency(){
 }
 
 void OLSQ::updateSMT(unsigned_t d){
-    updateGateTimeWindow(d);
+    if(_olsqParam.use_window_range_for_gate){
+        updateGateTimeWindow(d);
+    }
+    fprintf(stdout, "[Info]          constructing injective mapping constraint    \n");
+    addInjectiveMappingConstraintsZ3(d);
+    fprintf(stdout, "[Info]          constructing valid two-qubit gate constraint \n");
     addValidTwoQubitGateConstraintsZ3(d); 
+    fprintf(stdout, "[Info]          constructing swap overlapping constraint     \n");
     addSwapConstraintsZ3(d);
+    fprintf(stdout, "[Info]          constructing mapping transformation constraint\n");
     addTransformationConstraintsZ3(d);
 }
 

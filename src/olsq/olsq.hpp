@@ -163,11 +163,11 @@ class OLSQ{
 
         void generateFormulationZ3();
         void constructVariableZ3();
-        void addInjectiveMappingConstraintsZ3(unsigned_t begin = 0, unsigned_t end = 1);
-        void addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset = 0, unsigned_t begin = 0, unsigned_t end = 1); // if boundOffset > 0, it means we increase min_depth so we need to add constraints for partial t
+        void addInjectiveMappingConstraintsZ3(unsigned_t boundOffset = 0);
+        void addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset = 0); // if boundOffset > 0, it means we increase min_depth so we need to add constraints for partial t
         void addDependencyConstraintsZ3();
-        void addSwapConstraintsZ3(unsigned_t boundOffset = 0, unsigned_t begin = 0, unsigned_t end = 1);
-        void addTransformationConstraintsZ3(unsigned_t boundOffset = 0, unsigned_t begin = 0, unsigned_t end = 1);
+        void addSwapConstraintsZ3(unsigned_t boundOffset = 0);
+        void addTransformationConstraintsZ3(unsigned_t boundOffset = 0);
         void addDepthConstraintsZ3();
         void addSwapCountConstraintsZ3(unsigned_t bound);
         bool checkModel();
