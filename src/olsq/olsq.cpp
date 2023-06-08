@@ -586,7 +586,7 @@ bool OLSQ::optimizeSwap(){
         return false;
     }
 
-    unsigned_t lower_swap_bound = (_olsqParam.is_transition) ? _olsqParam.min_depth : 0;
+    unsigned_t lower_swap_bound = (_olsqParam.is_transition) ? _olsqParam.min_depth - 1 : 0;
     unsigned_t upper_swap_bound = (_olsqParam.is_use_SABRE_for_swap) ? _olsqParam.sabre_swap_bound : _pCircuit->nGate();
     upper_swap_bound = (_pCircuit->nSwapGate() < upper_swap_bound) ? _pCircuit->nSwapGate() : upper_swap_bound;
     // cout << "swap lower bound = " << lower_swap_bound << " , swap upper bound = " << upper_swap_bound << endl;
