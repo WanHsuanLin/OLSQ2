@@ -21,6 +21,7 @@ void OLSQ::setDependency(vector<pair<unsigned_t, unsigned_t> >& vDependencies){
 }
 
 void OLSQ::run(string const & fileName){
+    _outputQASM = fileName;
     _timer.start(TimeUsage::FULL);
     fprintf(stdout, "[Info] OLSQ Layout Synthesis                        \n");
     if(!_olsqParam.is_given_dependency){
@@ -100,6 +101,7 @@ void OLSQ::generateFormulationZ3(){
 }
 
 void OLSQ::constructVariableZ3(){
+    _smt.reset();
     unsigned_t bit_length_pi, bit_length_time;
     bit_length_pi = ceil(log2(_device.nQubit() + 1));
     bit_length_time = ceil(log2(_olsqParam.max_depth));
@@ -319,30 +321,30 @@ void OLSQ::addSwapConstraintsZ3(){
                         const BitwuzlaTerm * q1Bv = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvpi, _device.edge(e).qubitId1());
                         const BitwuzlaTerm * q2Bv = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvpi, _device.edge(e).qubitId2());
                         const BitwuzlaTerm * clause = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vTg[i], bvt);
-                        clause = bitwuzla_mk_term1(_smt.pSolver, BITWUZLA_KIND_NOT, clause);
+                        const BitwuzlaTerm * clauseOr = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_OR, 
+                                                    bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(0)], q1Bv), //pro1EqPhy1,
+                                                    bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(0)], q2Bv));
+                        const BitwuzlaTerm * clauseAnd;
                         const BitwuzlaTerm *cond;
-                        // pro1EqPhy1 = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(0)], q1Bv);
-                        // pro1EqPhy2 = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(0)], q2Bv);
-                        cond = bitwuzla_mk_term3(_smt.pSolver, BITWUZLA_KIND_OR, 
-                                bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(0)], q1Bv), //pro1EqPhy1,
-                                bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(0)], q2Bv), //pro1EqPhy2, 
-                                bitwuzla_mk_term1(_smt.pSolver, BITWUZLA_KIND_NOT, _smt.vvSigma[t][e]));
+                        cond = bitwuzla_mk_term1(_smt.pSolver, BITWUZLA_KIND_NOT, _smt.vvSigma[t][e]);
                         if (gate.nTargetQubit() == 1){
+                            clauseAnd =bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_AND, clause, clauseOr);
+                            clauseAnd = bitwuzla_mk_term1(_smt.pSolver, BITWUZLA_KIND_NOT, clauseAnd);
                             bitwuzla_assert(_smt.pSolver, 
-                                bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_AND, clause, cond));
+                                bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_OR, clauseAnd, cond));
                             // _smt.smtSolver.add( !((_smt.vTg[i] == (int_t)tt) && 
                             //                     ((_smt.vvPi[tt][gate.targetProgramQubit(0)] == (int_t)_device.edge(e).qubitId1())  ||
                             //                     (_smt.vvPi[tt][gate.targetProgramQubit(0)] == (int_t)_device.edge(e).qubitId2()) )) || !_smt.vvSigma[t][e]);
                         }
                         else if(gate.nTargetQubit() == 2){
-                            // pro2EqPhy2 = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(1)], q2Bv);
-                            // pro2EqPhy1 = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(1)], q1Bv);
-                            cond = bitwuzla_mk_term3(_smt.pSolver, BITWUZLA_KIND_OR, 
+                            clauseOr = bitwuzla_mk_term3(_smt.pSolver, BITWUZLA_KIND_OR, 
                                                     bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(1)], q1Bv), // pro2EqPhy1,
                                                     bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, _smt.vvPi[tt][gate.targetProgramQubit(1)], q2Bv), // pro2EqPhy2,
-                                                    cond);
+                                                    clauseOr);
+                            clauseAnd =bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_AND, clause, clauseOr);
+                            clauseAnd = bitwuzla_mk_term1(_smt.pSolver, BITWUZLA_KIND_NOT, clauseAnd);
                             bitwuzla_assert(_smt.pSolver, 
-                                bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_AND, clause, cond));
+                                bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_OR, clauseAnd, cond));
                             // _smt.smtSolver.add( !((_smt.vTg[i] == (int_t)tt) && 
                             //                     ((_smt.vvPi[tt][gate.targetProgramQubit(0)] == (int_t)_device.edge(e).qubitId1())  ||
                             //                     (_smt.vvPi[tt][gate.targetProgramQubit(1)] == (int_t)_device.edge(e).qubitId2())  ||
@@ -604,12 +606,12 @@ bool OLSQ::optimizeSwap(){
         addDepthConstraintsZ3();
         reduce_swap = optimizeSwapForDepth(lower_swap_bound, upper_swap_bound, firstRun);
         if (_olsqParam.is_transition){
-            _olsqParam.min_depth = _olsqParam.min_depth + 5;
-            _olsqParam.max_depth = _olsqParam.min_depth + 6;
+            _olsqParam.min_depth = _olsqParam.min_depth + 3;
+            _olsqParam.max_depth = _olsqParam.min_depth + 4;
         }
         else{
-            _olsqParam.min_depth = _olsqParam.min_depth + 10;
-            _olsqParam.max_depth = _olsqParam.min_depth + 11;
+            _olsqParam.min_depth = _olsqParam.min_depth + 6;
+            _olsqParam.max_depth = _olsqParam.min_depth + 7;
         }
         upper_swap_bound = _pCircuit->nSwapGate() - 1;
         firstRun = false;
@@ -751,6 +753,7 @@ void OLSQ::extractModel(){
         // _pCircuit->setFinalMapping(i, m.eval(_smt.vvPi[circuitDepth][i]).get_numeral_int64());
     }
     _pCircuit->setCircuitDepth(circuitDepth+1);
+    outputQASM(_outputQASM);
 }
 
 void OLSQ::asapScheduling(){
@@ -821,7 +824,7 @@ void OLSQ::outputQASM(string const & fileName){
     }
         for (i = 0; i < _pCircuit->nSwapGate(); ++i){
         Gate & gate = _pCircuit->swapGate(i);
-        vvTimeGate[gate.executionTime()].emplace_back(i);
+        vvTimeGate[gate.executionTime()].emplace_back(i+_pCircuit->nGate());
     }
     line = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + to_string(_device.nQubit()) + "];\ncreg c[" + to_string(_device.nQubit()) + "];\n";
     for (t = 0; t < _pCircuit->circuitDepth(); ++t){
@@ -840,6 +843,10 @@ void OLSQ::outputQASM(string const & fileName){
                 line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "], q[" + to_string(gate.targetPhysicalQubit(1)) + "];\n";
             }
         }
+    }
+    line = line + "\n// measurement\n";
+    for (i = 0; i < _pCircuit->nProgramQubit(); ++i){
+        line = line + "measure q[" + to_string(_pCircuit->finalMapping(i)) + "]->c[" + to_string(i) + "];\n";
     }
     FILE* fout = fopen(fileName.c_str(), "w");
     fprintf(fout, "%s", line.c_str());
