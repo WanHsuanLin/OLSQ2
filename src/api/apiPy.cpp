@@ -85,8 +85,8 @@ PYBIND11_MODULE(olsqpyb, m) {
         .def(py::init<Circuit&, Device&>())
         .def("setSwapDuration", &OLSQ::setSwapDuration, "use given initial mapping (default = 1)")
         .def("setSabreForSwap", &OLSQ::setSabreForSwap, "set SABRE swap count as SWAP upper bound")
-        .def("initializeTransitionMode", &OLSQ::initializeTransitionMode, "use transition based mode (default)", py::arg("max_depth") = 5, py::arg("min_depth") = 1)
-        .def("initializeNormalMode", &OLSQ::initializeNormalMode, "use normal based mode", py::arg("max_depth") = 0, py::arg("min_depth") = 0)
+        .def("initializeTransitionMode", &OLSQ::initializeTransitionMode, "use transition based mode (default)", py::arg("min_depth") = 1)
+        .def("initializeNormalMode", &OLSQ::initializeNormalMode, "use normal based mode", py::arg("min_depth") = 0)
         .def("setOptimizeForSwap", &OLSQ::setOptimizeForSwap, "Set optimization object to swap count")
         .def("run", &OLSQ::run, "run quantum layout synthesis")
         // .def("setDependency", [](OLSQ& self, pybind11::list pyDependencies){
