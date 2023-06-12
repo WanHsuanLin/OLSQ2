@@ -868,7 +868,7 @@ void OLSQ::asapScheduling(){
 
 
 void OLSQ::increaseDepthBound(){
-    while(_olsqParam.min_depth < _olsqParam.max_depth){
+    while(_olsqParam.min_depth > _olsqParam.max_depth){
         _olsqParam.max_depth_bit += _olsqParam.max_depth_expand_factor; 
         _olsqParam.max_depth = _olsqParam.max_depth << _olsqParam.max_depth_expand_factor;
     }
