@@ -211,6 +211,7 @@ void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
                     begin = end;
                     end += boundOffset;
                 }
+                cerr << "construct valid two qubit constraint for gate "<< i <<" from " << begin << " to " << end << endl;
             }
             for (t = begin; t < end; ++t){
                 const BitwuzlaTerm * bvt = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvtime, t);
@@ -343,6 +344,10 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset){
             if(_olsqParam.use_window_range_for_gate){
                 begin = _vpGateTimeWindow[i].first;
                 end = _vpGateTimeWindow[i].second + 1;
+                if(boundOffset > 0){
+                    begin = end;
+                    end += boundOffset;
+                }
             }
             for (t = begin; t < end; ++t){
                 for (e = 0; e < _device.nEdge(); ++e){
@@ -611,22 +616,22 @@ bool OLSQ::optimizeSwap(){
         // cout << "enter loop" << endl;
         addDepthConstraintsZ3();
         reduce_swap = optimizeSwapForDepth(lower_swap_bound, upper_swap_bound, firstRun);
-        _olsqParam.min_depth += step;
         upper_swap_bound = _pCircuit->nSwapGate() - 1;
         firstRun = false;
         // getchar();
         if(reduce_swap){
             fprintf(stdout, "[Info] Successfully reduce SWAP count. Go to next run.            \n");
-            fprintf(stdout, "[Info] Solving with depth %d            \n", _olsqParam.min_depth);
+            fprintf(stdout, "[Info] Solving with depth %d            \n", _olsqParam.min_depth + step);
             _timer.start(TimeUsage::PARTIAL);
             fprintf(stdout, "[Info] Generating formulation                        \n");
-            if(_olsqParam.min_depth < _olsqParam.max_depth){
+            if(_olsqParam.min_depth + step < _olsqParam.max_depth){
                 updateSMT(step);
             }
             else{
                 increaseDepthBound();
                 generateFormulationZ3();
             }
+            _olsqParam.min_depth += step;
             _timer.showUsage("Generating formulation", TimeUsage::PARTIAL);
             _timer.start(TimeUsage::PARTIAL);
         }
@@ -649,6 +654,9 @@ bool OLSQ::optimizeSwapForDepth(unsigned_t lower_swap_bound, unsigned_t upper_sw
         _timer.showUsage("optimizing swap", TimeUsage::FULL);
         if (success){
             extractModel();
+            if(swap_bound > _pCircuit->nSwapGate()){
+                swap_bound = _pCircuit->nSwapGate();
+            }
             --swap_bound;
         }
         else{
@@ -736,7 +744,6 @@ void OLSQ::extractModel(){
     }
     for (e = 0; e < _device.nEdge(); ++e){
         for (t = _olsqParam.swap_duration -1; t < bound; ++t){
-            for(tt = 0; tt < )
             if(vvTimeSwap[t][e] && vvTimeSwap[t + _olsqParam.swap_duration][e]){
                 // only cancel two consecutive swap
                 vvTimeSwap[t][e] = 0;
@@ -927,9 +934,6 @@ void OLSQ::printDependency(){
 }
 
 void OLSQ::updateSMT(unsigned_t d){
-    if(_olsqParam.use_window_range_for_gate){
-        updateGateTimeWindow(d);
-    }
     fprintf(stdout, "[Info]          constructing injective mapping constraint    \n");
     addInjectiveMappingConstraintsZ3(d);
     fprintf(stdout, "[Info]          constructing valid two-qubit gate constraint \n");
@@ -938,6 +942,9 @@ void OLSQ::updateSMT(unsigned_t d){
     addSwapConstraintsZ3(d);
     fprintf(stdout, "[Info]          constructing mapping transformation constraint\n");
     addTransformationConstraintsZ3(d);
+    if(_olsqParam.use_window_range_for_gate){
+        updateGateTimeWindow(d);
+    }
 }
 
 void OLSQ::constructGateTimeWindow(){
@@ -989,7 +996,7 @@ void OLSQ::updateGateTimeWindow(unsigned_t d){
     for(int_t i = 0; i < _vpGateTimeWindow.size(); ++i){
         _vpGateTimeWindow[i].second += d;
     }
-    printGateTimeWindow();
+    // printGateTimeWindow();
 }
 
 void OLSQ::printGateTimeWindow(){
