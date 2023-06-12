@@ -281,7 +281,10 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset){
     unsigned_t i, j, t, e, tt, q1, q2;
     Qubit qubit;
     unsigned_t end = _olsqParam.min_depth, begin = 0;
-    unsigned_t bound = (_olsqParam.swap_duration < _olsqParam.max_depth) ? _olsqParam.swap_duration - 1 : _olsqParam.max_depth;
+    unsigned_t bound = (_olsqParam.swap_duration < _olsqParam.max_depth) ? _olsqParam.swap_duration: _olsqParam.max_depth;
+    if(_olsqParam.is_transition){
+        --bound;
+    }
     // unsigned_t begin = _olsqParam.swap_duration -1, end = _olsqParam.min_depth;
     if(boundOffset > 0){
         begin = end;
@@ -674,8 +677,13 @@ bool OLSQ::optimizeSwapForDepth(unsigned_t lower_swap_bound, unsigned_t upper_sw
 void OLSQ::extractModel(){
     fprintf(stdout, "[Info] Extract Model Info                              \n");
     unsigned_t circuitDepth = 0, i, gateTime, q, j, swapId, qId, t, e;
-    // collect gate execution time
     string s;
+    // collect initial mapping
+    vector<int_t> vInitialMapping(_pCircuit->nProgramQubit(), -1);
+
+    // collect gate execution time
+    vector<int_t> vQubitFirstGateTime(_pCircuit->nProgramQubit(), -1);
+    vector<int_t> vQubitLastGateTime(_pCircuit->nProgramQubit(), -1);
     for ( i = 0; (i < _pCircuit->nGate());  ++i){
         Gate &gate = _pCircuit->gate(i);
         const char *rstr = bitwuzla_get_bv_value(_smt.pSolver, _smt.vTg[i]);
@@ -683,6 +691,12 @@ void OLSQ::extractModel(){
         gateTime = stoi(s, nullptr, 2); 
         circuitDepth = (circuitDepth < gateTime) ? gateTime : circuitDepth;
         gate.setExecutionTime(gateTime);
+        for ( j = 0; j < gate.nTargetQubit();  ++j ){
+            if(vQubitFirstGateTime[gate.targetProgramQubit(j)] == -1){
+                vQubitFirstGateTime[gate.targetProgramQubit(j)] = gateTime;
+            }
+            vQubitLastGateTime[gate.targetProgramQubit(j)] = (vQubitLastGateTime[gate.targetProgramQubit(j)] < (int_t)gateTime) ? (int_t)gateTime: vQubitLastGateTime[gate.targetProgramQubit(j)];
+        }
         for ( j = 0; j < gate.nTargetQubit();  ++j ){
             const char *rstr = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[gateTime][gate.targetProgramQubit(j)]);
             s = rstr;
@@ -700,27 +714,87 @@ void OLSQ::extractModel(){
             fprintf(stdout, "\n");
         }
     }
+
+    // collect qubit mapping
+    vector<vector<int_t> > vvPhy2Pro(circuitDepth,  vector<int_t>(_device.nQubit(), -1));
+    for (t = 0; t < circuitDepth; ++t){
+        for (i = 0; i < _pCircuit->nProgramQubit(); ++i){
+            const char *rstr = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[t][i]);
+            s = rstr;
+            vvPhy2Pro[t][stoi(s, nullptr, 2)] = i;
+        }
+    }
+
     // get SWAP gate
     _pCircuit->clearSwap();
     vector<unsigned_t> swapTargetQubit(2,0);
+    bool cond1, cond2;
+    int_t tmp, bound = circuitDepth - _olsqParam.swap_duration;
+    vector<vector<bool> > vvTimeSwap(circuitDepth, vector<bool>(_device.nEdge(), 0));
     for (t = _olsqParam.swap_duration -1; t < circuitDepth; ++t){
         for (e = 0; e < _device.nEdge(); ++e){
             const char *rstr = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvSigma[t][e]);
             s = rstr;
-            if (stoi(s, nullptr, 2)){
-                swapTargetQubit[0] = _device.edge(e).qubitId1();
-                swapTargetQubit[1] = _device.edge(e).qubitId2();
-                swapId = _pCircuit->nSwapGate();
-                _pCircuit->addSwapGate(swapId, swapTargetQubit, _olsqParam.swap_duration);
-                Gate & gate = _pCircuit->swapGate(swapId);
-                gate.setExecutionTime(t);
-                if (_verbose > 0){
-                    fprintf(stdout, "        - SWAP Gate %d, duration: %d, time: %d, target qubit: %d %d\n", swapId + _pCircuit->nGate(), gate.duration(), gate.executionTime(), gate.targetPhysicalQubit(0), gate.targetPhysicalQubit(1));
+            vvTimeSwap[t][e] = stoi(s, nullptr, 2);
+        }
+    }
+    for (e = 0; e < _device.nEdge(); ++e){
+        for (t = _olsqParam.swap_duration -1; t < bound; ++t){
+            if(vvTimeSwap[t][e] && vvTimeSwap[t + _olsqParam.swap_duration][e]){
+                // two consecutive swap
+                vvTimeSwap[t][e] = 0;
+                vvTimeSwap[t + _olsqParam.swap_duration][e] = 0;
+            }
+        }
+    }
+    for (t = _olsqParam.swap_duration -1; t < circuitDepth; ++t){
+        for (e = 0; e < _device.nEdge(); ++e){
+            const char *rstr = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvSigma[t][e]);
+            s = rstr;
+            if (vvTimeSwap[t][e]){
+                cond1 = !((vvPhy2Pro[t][_device.edge(e).qubitId1()] == -1) && (vvPhy2Pro[t][_device.edge(e).qubitId2()] == -1));
+                cond2 = cond1;
+                // check if it is before the first gates of these qubits
+                if(vvPhy2Pro[t][_device.edge(e).qubitId1()] != -1){
+                    cond1 = (vQubitFirstGateTime[vvPhy2Pro[t][_device.edge(e).qubitId1()]] <= t);
+                }
+                if(vvPhy2Pro[t][_device.edge(e).qubitId2()] != -1){
+                    cond1 = (vQubitFirstGateTime[vvPhy2Pro[t][_device.edge(e).qubitId2()]] <= t) || cond1;
+                }
+                // check if it is after the last gates of these qubits
+                if(vvPhy2Pro[t][_device.edge(e).qubitId1()] != -1){
+                    cond2 = (vQubitLastGateTime[vvPhy2Pro[t][_device.edge(e).qubitId1()]] > t);
+                }
+                if(vvPhy2Pro[t][_device.edge(e).qubitId2()] != -1){
+                    cond2 = (vQubitLastGateTime[vvPhy2Pro[t][_device.edge(e).qubitId2()]] > t) || cond2;
+                }
+                // cerr << "cond1: " << cond1 << ", cond2: " << cond2 << endl;
+                if(cond1 && cond2){
+                    swapTargetQubit[0] = _device.edge(e).qubitId1();
+                    swapTargetQubit[1] = _device.edge(e).qubitId2();
+                    swapId = _pCircuit->nSwapGate();
+                    _pCircuit->addSwapGate(swapId, swapTargetQubit, _olsqParam.swap_duration);
+                    Gate & gate = _pCircuit->swapGate(swapId);
+                    gate.setExecutionTime(t);
+                    if (_verbose > 0){
+                        fprintf(stdout, "        - SWAP Gate %d, duration: %d, time: %d, target qubit: %d %d\n", swapId + _pCircuit->nGate(), gate.duration(), gate.executionTime(), gate.targetPhysicalQubit(0), gate.targetPhysicalQubit(1));
+                    }
+                    if(vvPhy2Pro[t][swapTargetQubit[0]] != -1){
+                        vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] > t) ? t - 1: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
+                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] < t) ? t: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
+                    }
+                    if(vvPhy2Pro[t][swapTargetQubit[0]] != -1){
+                        vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] > t) ? t - 1: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
+                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] < t) ? t: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
+                    }
+                }
+                else{
+                    fprintf(stdout, "        - SWAP Gate, time: %d, target qubit: %d %d\n", t, _device.edge(e).qubitId1(), _device.edge(e).qubitId2());
                 }
             }
         }
     }
-    // set initial and final mapping
+    // collect qubit mapping
     if (_verbose > 0){
         fprintf(stdout, "        - Qubit mapping: \n");
         for (t = 0; t <= circuitDepth; ++t){
@@ -735,10 +809,13 @@ void OLSQ::extractModel(){
     }
     
     for (i = 0; i < _pCircuit->nProgramQubit(); ++i){
-        const char *rstr1 = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[0][i]);
+        _pCircuit->setInitialMapping(i, vInitialMapping[i]);
+        // cerr << "vQubitLastGateTime[" << i << "]:" << vQubitLastGateTime[i] << endl;
+        // cerr << "vQubitFirstGateTime[" << i << "]:" << vQubitFirstGateTime[i] << endl;
+        const char *rstr1 = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[vQubitFirstGateTime[i]][i]);
         s = rstr1;
         _pCircuit->setInitialMapping(i,  stoi(s, nullptr, 2));
-        const char *rstr2 = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[circuitDepth][i]);
+        const char *rstr2 = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[vQubitLastGateTime[i]][i]);
         s = rstr2;
         _pCircuit->setFinalMapping(i,  stoi(s, nullptr, 2));
     }
@@ -867,25 +944,43 @@ void OLSQ::constructGateTimeWindow(){
     vector<int_t> vQubitArriveTime(_pCircuit->nProgramQubit(), 0);
     vector<int_t> vQubitRequiredTime(_pCircuit->nProgramQubit(), _olsqParam.min_depth-1);
     unsigned_t qId, j, t;
-    for (int_t i = 0; i < _pCircuit->nGate(); ++i){
+    int_t i;
+    for ( i = 0; i < _pCircuit->nGate(); ++i){
         Gate & gate = _pCircuit->gate(i);
         t = 0;
         for ( j = 0; j < gate.nTargetQubit();  ++j ){
             qId = gate.targetProgramQubit(j);
             t = (vQubitArriveTime[qId] < t) ? t : vQubitArriveTime[qId];
-            ++vQubitArriveTime[qId];
         }
         _vpGateTimeWindow.emplace_back(make_pair(t, 0));
+        ++t;
+        for ( j = 0; j < gate.nTargetQubit();  ++j ){
+            vQubitArriveTime[gate.targetProgramQubit(j)] = t;
+        }
+        // cerr << "qubit arrive time: " << endl;
+        // for (auto qat : vQubitArriveTime){
+        //     cerr << qat << " ";
+        // }
+        // cerr << endl;
     }
-    for (int_t i = _pCircuit->nGate() - 1; i >= 0; --i){
+    // cerr << "_olsqParam.min_depth: " << _olsqParam.min_depth << endl;
+    for ( i = _pCircuit->nGate() - 1; i >= 0; --i){
         Gate & gate = _pCircuit->gate(i);
-        t = _olsqParam.min_depth;
+        t = _olsqParam.min_depth - 1;
+        // cerr << "before t: " << t << endl;
         for ( j = 0; j < gate.nTargetQubit();  ++j ){
             qId = gate.targetProgramQubit(j);
-            t = (vQubitRequiredTime[qId] > t) ? t : vQubitArriveTime[qId];
-            --vQubitRequiredTime[qId];
+            t = (vQubitRequiredTime[qId] > t) ? t : vQubitRequiredTime[qId];
+            // cerr << "update t: " << t << endl;
+            
         }
+        // cerr << "t: " << t << endl;
         _vpGateTimeWindow[i].second = t;
+        --t;
+        for ( j = 0; j < gate.nTargetQubit();  ++j ){
+            vQubitRequiredTime[gate.targetProgramQubit(j)] = t;
+        }
+        
     }
     printGateTimeWindow();
 }

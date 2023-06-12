@@ -95,7 +95,7 @@ class OLSQ{
             bool         is_given_dependency           = false;
             bool         is_given_depth                = false;
             bool         is_given_mapping_region       = false;
-            bool         use_window_range_for_gate     = false;
+            bool         use_window_range_for_gate     = true;
             unsigned_t   max_depth                     = 7;  //  always (power of 2) - 1, for bit length 
             unsigned_t   min_depth                     = 1;
             unsigned_t   max_depth_expand_factor       = 2;
