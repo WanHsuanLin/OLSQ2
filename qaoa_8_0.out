@@ -28,4 +28,4 @@ measure q[3]->c[3];
 measure q[2]->c[4];
 measure q[4]->c[5];
 measure q[7]->c[6];
-measure q[4]->c[7];
+measure q[5]->c[7];

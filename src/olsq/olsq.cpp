@@ -672,7 +672,7 @@ bool OLSQ::optimizeSwapForDepth(unsigned_t lower_swap_bound, unsigned_t upper_sw
 
 void OLSQ::extractModel(){
     fprintf(stdout, "[Info] Extract Model Info                              \n");
-    unsigned_t circuitDepth = 0, i, gateTime, q, j, swapId, qId, t, e;
+    unsigned_t circuitDepth = 0, i, gateTime, q, j, swapId, qId, t, e, tt;
     string s;
     // collect initial mapping
     vector<int_t> vInitialMapping(_pCircuit->nProgramQubit(), -1);
@@ -736,8 +736,9 @@ void OLSQ::extractModel(){
     }
     for (e = 0; e < _device.nEdge(); ++e){
         for (t = _olsqParam.swap_duration -1; t < bound; ++t){
+            for(tt = 0; tt < )
             if(vvTimeSwap[t][e] && vvTimeSwap[t + _olsqParam.swap_duration][e]){
-                // two consecutive swap
+                // only cancel two consecutive swap
                 vvTimeSwap[t][e] = 0;
                 vvTimeSwap[t + _olsqParam.swap_duration][e] = 0;
             }
@@ -776,17 +777,17 @@ void OLSQ::extractModel(){
                         fprintf(stdout, "        - SWAP Gate %d, duration: %d, time: %d, target qubit: %d %d\n", swapId + _pCircuit->nGate(), gate.duration(), gate.executionTime(), gate.targetPhysicalQubit(0), gate.targetPhysicalQubit(1));
                     }
                     if(vvPhy2Pro[t][swapTargetQubit[0]] != -1){
-                        vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] > t) ? t - 1: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
-                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] < t) ? t: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
+                        vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] > t) ? t: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
+                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] < t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
                     }
                     if(vvPhy2Pro[t][swapTargetQubit[0]] != -1){
-                        vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] > t) ? t - 1: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
-                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] < t) ? t: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
+                        vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] > t) ? t: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
+                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] < t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
                     }
                 }
-                else{
-                    fprintf(stdout, "        - SWAP Gate, time: %d, target qubit: %d %d\n", t, _device.edge(e).qubitId1(), _device.edge(e).qubitId2());
-                }
+                // else{
+                //     fprintf(stdout, "        - SWAP Gate, time: %d, target qubit: %d %d\n", t, _device.edge(e).qubitId1(), _device.edge(e).qubitId2());
+                // }
             }
         }
     }
