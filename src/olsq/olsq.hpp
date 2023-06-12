@@ -51,7 +51,6 @@ class OLSQ{
         void setSabreForSwap(bool s, unsigned_t bound)          { _olsqParam.is_use_SABRE_for_swap = s; _olsqParam.sabre_swap_bound = bound; }                 
         void setOptimizeForSwap(){ 
             _olsqParam.is_optimize_swap = true; 
-            _olsqParam.min_depth = _olsqParam.max_depth - 1;
         }                 
         void initializeTransitionMode(unsigned_t min_depth = 1){
             _olsqParam.is_transition = true;
@@ -72,6 +71,7 @@ class OLSQ{
             }
         }
         void run(string const & fileName);
+        void dump();
         void setDependency(vector<pair<unsigned_t, unsigned_t> > & vDependencies);
         void printDependency();
 
@@ -107,7 +107,7 @@ class OLSQ{
                 // z3::context c;
                 // solver = z3::solver(c);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_PRODUCE_MODELS, 1);
-                bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 1);
+                bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 0);
                 vvPi.clear();
                 vTg.clear();
                 vvSigma.clear();
@@ -118,7 +118,7 @@ class OLSQ{
             void reset(){
                 bitwuzla_reset(pSolver);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_PRODUCE_MODELS, 1);
-                bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 1);
+                bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 0);
                 vvPi.clear();
                 vTg.clear();
                 vvSigma.clear();

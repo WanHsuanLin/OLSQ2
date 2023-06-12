@@ -89,6 +89,7 @@ PYBIND11_MODULE(olsqpyb, m) {
         .def("initializeNormalMode", &OLSQ::initializeNormalMode, "use normal based mode", py::arg("min_depth") = 0)
         .def("setOptimizeForSwap", &OLSQ::setOptimizeForSwap, "Set optimization object to swap count")
         .def("run", &OLSQ::run, "run quantum layout synthesis")
+        .def("dump", &OLSQ::dump, "dump quantum layout synthesis formulation")
         // .def("setDependency", [](OLSQ& self, pybind11::list pyDependencies){
         //     // convert pyDependencies into vDependencies
         //     vector<pair<unsigned_t, unsigned_t> > vDependencies;

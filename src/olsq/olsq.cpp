@@ -47,6 +47,24 @@ void OLSQ::run(string const & fileName){
     outputQASM(fileName);
 }
 
+void OLSQ::dump(){
+    // for formulation generation
+    _olsqParam.min_depth = 21;
+    increaseDepthBound();
+    if (!_olsqParam.is_transition && _olsqParam.use_window_range_for_gate){
+        constructGateTimeWindow();
+    }
+    if (_olsqParam.is_given_mapping_region){
+        collectQubitRegion();
+    }
+    fprintf(stdout, "[Info] Generating formulation                        \n");
+    generateFormulationZ3();
+    addDepthConstraintsZ3();
+    string fileName = to_string(_device.nQubit()) + "_" + to_string(_pCircuit->nGate()) + "_21_timewindow.txt";
+    FILE *ptr = fopen(fileName.c_str(),"w");
+    bitwuzla_dump_formula(_smt.pSolver, "smt2", ptr);
+}
+
 void OLSQ::runSMT(){
     fprintf(stdout, "[Info] OLSQ Layout Synthesis                        \n");
     if(!_olsqParam.is_transition){
@@ -546,9 +564,6 @@ bool OLSQ::optimizeDepth(){
     else{
         step = (_olsqParam.min_depth > 100) ? 10 : 1;
     }
-    // FILE *ptr = fopen("constraint.txt","w");
-    // bitwuzla_dump_formula(_smt.pSolver, "smt2", ptr);
-    
     while(!find_min_depth && _olsqParam.min_depth < _olsqParam.max_depth ){
         fprintf(stdout, "[Info]          trying to optimize for depth bound %d            \n", _olsqParam.min_depth);
         _timer.start(TimeUsage::PARTIAL);
