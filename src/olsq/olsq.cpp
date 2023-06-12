@@ -54,9 +54,6 @@ void OLSQ::runSMT(){
             _olsqParam.min_depth = extract_longest_chain();
             fprintf(stdout, "[Info] Longest chain = %d\n", _olsqParam.min_depth);
         }
-        if (_olsqParam.max_depth == 0){
-            _olsqParam.max_depth = 2 * _olsqParam.min_depth;
-        }
     }
     bool solve = false;
     unsigned_t iter = 0;
@@ -102,7 +99,7 @@ void OLSQ::generateFormulationZ3(){
 void OLSQ::constructVariableZ3(){
     unsigned_t bit_length_pi, bit_length_time;
     bit_length_pi = ceil(log2(_device.nQubit() + 1));
-    bit_length_time = ceil(log2(_olsqParam.max_depth));
+    bit_length_time = _olsqParam.max_depth_bit;
     _smt.vvPi.reserve(_olsqParam.max_depth);
     _smt.vTg.reserve(_pCircuit->nGate());
     _smt.vvSigma.reserve(_olsqParam.max_depth);
@@ -197,7 +194,7 @@ void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
     unsigned_t i, t, j;
     vector<set<int_t>> * pvsQubitRegion = _pCircuit->pvQubitRegion();
     unsigned_t end = _olsqParam.min_depth, begin = 0;
-    const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_olsqParam.max_depth)));
+    const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, _olsqParam.max_depth_bit);
     const BitwuzlaSort *sortbvpi = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_device.nQubit() + 1)));
     if(boundOffset > 0){
         begin = end;
@@ -259,7 +256,7 @@ void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
 void OLSQ::addDependencyConstraintsZ3(){
     unsigned_t i;
     Gate g;
-    const BitwuzlaSort * sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_olsqParam.max_depth)));
+    const BitwuzlaSort * sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, _olsqParam.max_depth_bit);
     const BitwuzlaTerm * zero = bitwuzla_mk_bv_zero(_smt.pSolver, sortbvtime);
     for (i = 0; i < _pCircuit->nGate(); ++i){
         bitwuzla_assert(_smt.pSolver, bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_BV_ULE, zero, _smt.vTg[i]));
@@ -326,7 +323,7 @@ void OLSQ::addSwapConstraintsZ3(unsigned_t boundOffset){
     if (!_olsqParam.is_transition){
         begin = 0;
         end = _olsqParam.min_depth;
-        const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_olsqParam.max_depth)));
+        const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, _olsqParam.max_depth_bit);
         const BitwuzlaSort *sortbvpi = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_device.nQubit() + 1)));
         // swap gates can not overlap with swap in time
         for (t = begin; t < end; ++t){
@@ -443,7 +440,7 @@ void OLSQ::addTransformationConstraintsZ3(unsigned_t boundOffset){
 }
 
 void OLSQ::addDepthConstraintsZ3(){
-    const BitwuzlaSort * sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, ceil(log2(_olsqParam.max_depth)));
+    const BitwuzlaSort * sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, _olsqParam.max_depth_bit);
     if(!_olsqParam.use_window_range_for_gate){
         const BitwuzlaTerm * depthBv = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvtime, _olsqParam.min_depth);
         for (const BitwuzlaTerm* t: _smt.vTg){
@@ -608,20 +605,12 @@ bool OLSQ::optimizeSwap(){
     upper_swap_bound = (_pCircuit->nSwapGate() < upper_swap_bound) ? _pCircuit->nSwapGate() : upper_swap_bound;
     bool reduce_swap = true;
     bool firstRun = true;
+    unsigned_t step = (_olsqParam.is_transition) ? 3 : 9; 
     while (reduce_swap && _timer.fullRealTime() < _olsqParam.timeout){
         // cout << "enter loop" << endl;
         addDepthConstraintsZ3();
         reduce_swap = optimizeSwapForDepth(lower_swap_bound, upper_swap_bound, firstRun);
-        if (_olsqParam.is_transition){
-            _olsqParam.min_depth = _olsqParam.min_depth + 5;
-            _olsqParam.max_depth = _olsqParam.min_depth + 6;
-            updateGateTimeWindow(5);
-        }
-        else{
-            _olsqParam.min_depth = _olsqParam.min_depth + 10;
-            _olsqParam.max_depth = _olsqParam.min_depth + 11;
-            updateGateTimeWindow(10);
-        }
+        _olsqParam.min_depth += step;
         upper_swap_bound = _pCircuit->nSwapGate() - 1;
         firstRun = false;
         // getchar();
@@ -630,7 +619,13 @@ bool OLSQ::optimizeSwap(){
             fprintf(stdout, "[Info] Solving with depth %d            \n", _olsqParam.min_depth);
             _timer.start(TimeUsage::PARTIAL);
             fprintf(stdout, "[Info] Generating formulation                        \n");
-            generateFormulationZ3();
+            if(_olsqParam.min_depth < _olsqParam.max_depth){
+                updateSMT(step);
+            }
+            else{
+                increaseDepthBound();
+                generateFormulationZ3();
+            }
             _timer.showUsage("Generating formulation", TimeUsage::PARTIAL);
             _timer.start(TimeUsage::PARTIAL);
         }
@@ -872,7 +867,10 @@ void OLSQ::asapScheduling(){
 
 
 void OLSQ::increaseDepthBound(){
-    _olsqParam.max_depth *= _olsqParam.max_depth_expand_factor; 
+    while(_olsqParam.min_depth < _olsqParam.max_depth){
+        _olsqParam.max_depth_bit += _olsqParam.max_depth_expand_factor; 
+        _olsqParam.max_depth = _olsqParam.max_depth << _olsqParam.max_depth_expand_factor;
+    }
 }
 
 unsigned_t OLSQ::extract_longest_chain(){

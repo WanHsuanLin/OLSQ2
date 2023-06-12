@@ -53,12 +53,12 @@ class OLSQ{
             _olsqParam.is_optimize_swap = true; 
             _olsqParam.min_depth = _olsqParam.max_depth - 1;
         }                 
-        void initializeTransitionMode(unsigned_t max_depth = 5, unsigned_t min_depth = 1){
+        void initializeTransitionMode(nsigned_t min_depth = 1){
             _olsqParam.is_transition = true;
             _olsqParam.is_given_depth = true;
-            _olsqParam.max_depth = max_depth;
             _olsqParam.min_depth = min_depth;
-            _olsqParam.max_depth_expand_factor = 2;
+            _olsqParam.max_depth_bit = ceil(log2(min_depth + 1));
+            _olsqParam.max_depth = pow(2, _olsqParam.max_depth_bit);
         }
         void initializeNormalMode(unsigned_t max_depth = 0, unsigned_t min_depth = 0){
             _olsqParam.is_transition = false;
@@ -75,7 +75,6 @@ class OLSQ{
                 _olsqParam.max_depth = max_depth;
             }
             _olsqParam.max_depth = max_depth;
-            _olsqParam.max_depth_expand_factor = 2;
         }
         void run(string const & fileName);
         void setDependency(vector<pair<unsigned_t, unsigned_t> > & vDependencies);
@@ -96,9 +95,10 @@ class OLSQ{
             bool         is_given_depth                = false;
             bool         is_given_mapping_region       = false;
             bool         use_window_range_for_gate     = true;
-            unsigned_t   max_depth                     = 7;  //  always (power of 2) - 1, for bit length 
+            unsigned_t   max_depth                     = 8;  //  always (power of 2), for bit length 
+            unsigned_t   max_depth_bit                 = 3;  
             unsigned_t   min_depth                     = 1;
-            unsigned_t   max_depth_expand_factor       = 2;
+            unsigned_t   max_depth_expand_factor       = 1;
             unsigned_t   sabre_swap_bound              = 0;
             unsigned_t   timeout                       = 86400;
             unsigned_t   swap_duration                  = 1;
