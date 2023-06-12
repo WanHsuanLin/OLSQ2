@@ -53,28 +53,23 @@ class OLSQ{
             _olsqParam.is_optimize_swap = true; 
             _olsqParam.min_depth = _olsqParam.max_depth - 1;
         }                 
-        void initializeTransitionMode(nsigned_t min_depth = 1){
+        void initializeTransitionMode(unsigned_t min_depth = 1){
             _olsqParam.is_transition = true;
             _olsqParam.is_given_depth = true;
             _olsqParam.min_depth = min_depth;
             _olsqParam.max_depth_bit = ceil(log2(min_depth + 1));
             _olsqParam.max_depth = pow(2, _olsqParam.max_depth_bit);
         }
-        void initializeNormalMode(unsigned_t max_depth = 0, unsigned_t min_depth = 0){
+        void initializeNormalMode(unsigned_t min_depth = 0){
             _olsqParam.is_transition = false;
             if (min_depth == 0){
                 _olsqParam.is_given_depth = false;
             }
             else{
                 _olsqParam.min_depth = min_depth;
+                _olsqParam.max_depth_bit = ceil(log2(min_depth + 1));
+                _olsqParam.max_depth = pow(2, _olsqParam.max_depth_bit);
             }
-            if (max_depth == 0){
-                _olsqParam.max_depth = 2 * _olsqParam.min_depth;
-            }
-            else{
-                _olsqParam.max_depth = max_depth;
-            }
-            _olsqParam.max_depth = max_depth;
         }
         void run(string const & fileName);
         void setDependency(vector<pair<unsigned_t, unsigned_t> > & vDependencies);

@@ -52,6 +52,7 @@ void OLSQ::runSMT(){
     if(!_olsqParam.is_transition){
         if (!_olsqParam.is_given_depth){
             _olsqParam.min_depth = extract_longest_chain();
+            increaseDepthBound();
             fprintf(stdout, "[Info] Longest chain = %d\n", _olsqParam.min_depth);
         }
     }
