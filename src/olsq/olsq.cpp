@@ -211,7 +211,7 @@ void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
                     begin = end;
                     end += boundOffset;
                 }
-                cerr << "construct valid two qubit constraint for gate "<< i <<" from " << begin << " to " << end << endl;
+                // cerr << "construct valid two qubit constraint for gate "<< i <<" from " << begin << " to " << end << endl;
             }
             for (t = begin; t < end; ++t){
                 const BitwuzlaTerm * bvt = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvtime, t);
