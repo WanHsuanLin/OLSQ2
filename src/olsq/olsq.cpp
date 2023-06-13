@@ -632,7 +632,9 @@ bool OLSQ::optimizeSwap(){
         // cout << "enter loop" << endl;
         bitwuzla_push(_smt.pSolver, 1);
         addDepthConstraintsZ3();
+   
         reduce_swap = optimizeSwapForDepth(lower_swap_bound, upper_swap_bound, firstRun);
+        bitwuzla_pop(_smt.pSolver, 1);
         upper_swap_bound = _pCircuit->nSwapGate() - 1;
         firstRun = false;
         // getchar();
@@ -654,7 +656,6 @@ bool OLSQ::optimizeSwap(){
             _timer.showUsage("Generating formulation", TimeUsage::PARTIAL);
             _timer.start(TimeUsage::PARTIAL);
         }
-        bitwuzla_pop(_smt.pSolver, 1);
     }
     return true;
 }
