@@ -49,6 +49,7 @@ class OLSQ{
         void setCircuit(Circuit & cir)                          { _pCircuit = &cir; }
         void setSwapDuration(unsigned_t d)                      { _olsqParam.swap_duration = d; }                 
         void setSabreForSwap(bool s, unsigned_t bound)          { _olsqParam.is_use_SABRE_for_swap = s; _olsqParam.sabre_swap_bound = bound; }                 
+        void enableGateTimeWindow()                             { _olsqParam.use_window_range_for_gate = 1; }                 
         void setOptimizeForSwap(){ 
             _olsqParam.is_optimize_swap = true; 
         }                 
@@ -89,7 +90,7 @@ class OLSQ{
             bool         is_given_dependency           = false;
             bool         is_given_depth                = false;
             bool         is_given_mapping_region       = false;
-            bool         use_window_range_for_gate     = true;
+            bool         use_window_range_for_gate     = false;
             unsigned_t   max_depth                     = 8;  //  always (power of 2), for bit length 
             unsigned_t   max_depth_bit                 = 3;  
             unsigned_t   min_depth                     = 1;

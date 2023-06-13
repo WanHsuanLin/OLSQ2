@@ -76,7 +76,7 @@ def get_device_by_name(name):
     device.printDevice()
     return device_set_edge[name], device
 
-def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_transition, obj_is_swap, use_sabre, swap_duration):
+def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_transition, obj_is_swap, use_sabre, swap_duration, use_gt):
     circuit = createCircuit(filename, circuit_info)
     circuit.printCircuit()
     lsqc_solver = OLSQ(circuit, device)
@@ -89,6 +89,8 @@ def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_
         lsqc_solver.setOptimizeForSwap()
     if use_sabre:
         useSabre(True, False, lsqc_solver, circuit, device.nQubit(), connection, circuit_info, True)
+    if use_gt:
+        lsqc_solver.enableGateTimeWindow()
     start = timeit.default_timer()
     b_file = filename.split('.')
     b_file = b_file[-2]
@@ -122,6 +124,8 @@ if __name__ == "__main__":
         help="Use TB-OLSQ")
     parser.add_argument("--swap", action='store_true', default=False,
         help="Optimize SWAP")
+    parser.add_argument("--gt", action='store_true', default=False,
+        help="Use gate time")
     # parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
     #     help="user define swap bound")
     # parser.add_argument("--thread", dest="thread", type=int, default=-1,
@@ -151,6 +155,6 @@ if __name__ == "__main__":
     else:
         swap_duration = 3
 
-    run_olsq_tbolsq(args.qasm, circuit_info, device, connection, args.tran, args.swap, args.sabre, swap_duration)
+    run_olsq_tbolsq(args.qasm, circuit_info, device, connection, args.tran, args.swap, args.sabre, swap_duration, args.gt)
     
 # python3 run_olsq.py --dt grid --d 3 --b qaoa --qf ../quantum_cir_benchmark/qaoa/qaoa_8_0.qasm

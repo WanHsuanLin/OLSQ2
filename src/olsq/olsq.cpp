@@ -231,6 +231,7 @@ void OLSQ::addValidTwoQubitGateConstraintsZ3(unsigned_t boundOffset){
                 }
                 // cerr << "construct valid two qubit constraint for gate "<< i <<" from " << begin << " to " << end << endl;
             }
+            // cerr << "construct valid two qubit constraint for gate "<< i << endl;
             for (t = begin; t < end; ++t){
                 const BitwuzlaTerm * bvt = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvtime, t);
                 if(_olsqParam.is_given_mapping_region){
@@ -626,7 +627,7 @@ bool OLSQ::optimizeSwap(){
     upper_swap_bound = (_pCircuit->nSwapGate() < upper_swap_bound) ? _pCircuit->nSwapGate() : upper_swap_bound;
     bool reduce_swap = true;
     bool firstRun = true;
-    unsigned_t step = (_olsqParam.is_transition) ? 3 : 9; 
+    unsigned_t step = 2; 
     while (reduce_swap && _timer.fullRealTime() < _olsqParam.timeout){
         // cout << "enter loop" << endl;
         addDepthConstraintsZ3();
@@ -641,12 +642,14 @@ bool OLSQ::optimizeSwap(){
             fprintf(stdout, "[Info] Generating formulation                        \n");
             if(_olsqParam.min_depth + step < _olsqParam.max_depth){
                 updateSMT(step);
+                _olsqParam.min_depth += step;
             }
             else{
+                _olsqParam.min_depth += step;
                 increaseDepthBound();
+                _smt.reset();
                 generateFormulationZ3();
             }
-            _olsqParam.min_depth += step;
             _timer.showUsage("Generating formulation", TimeUsage::PARTIAL);
             _timer.start(TimeUsage::PARTIAL);
         }
@@ -717,8 +720,8 @@ void OLSQ::extractModel(){
             vQubitLastGateTime[gate.targetProgramQubit(j)] = (vQubitLastGateTime[gate.targetProgramQubit(j)] < (int_t)gateTime) ? (int_t)gateTime: vQubitLastGateTime[gate.targetProgramQubit(j)];
         }
         for ( j = 0; j < gate.nTargetQubit();  ++j ){
-            const char *rstr = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[gateTime][gate.targetProgramQubit(j)]);
-            s = rstr;
+            const char *rstr1 = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[gateTime][gate.targetProgramQubit(j)]);
+            s = rstr1;
             gate.addTargetPhysicalQubit(j, stoi(s, nullptr, 2));
         }
         if (_verbose > 0){
@@ -744,7 +747,7 @@ void OLSQ::extractModel(){
         }
     }
 
-    // get SWAP gate
+    // // get SWAP gate
     _pCircuit->clearSwap();
     vector<unsigned_t> swapTargetQubit(2,0);
     bool cond1, cond2;
@@ -802,7 +805,7 @@ void OLSQ::extractModel(){
                         vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] > t) ? t: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
                         vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] < t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
                     }
-                    if(vvPhy2Pro[t][swapTargetQubit[0]] != -1){
+                    if(vvPhy2Pro[t][swapTargetQubit[1]] != -1){
                         vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] > t) ? t: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
                         vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] < t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
                     }
