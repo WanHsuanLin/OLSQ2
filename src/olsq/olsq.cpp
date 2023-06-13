@@ -873,7 +873,7 @@ void OLSQ::asapScheduling(){
         if (block < _pCircuit->circuitDepth() - 1){
             for (j = 0; j < _pCircuit->nSwapGate(); ++j){
                 Gate & gate = _pCircuit->swapGate(j);
-                if (gate.executionTime() == block && sGateId.count(gate.idx()) == 0){
+                if (gate.executionTime() == block && sGateId.count(gate.idx()+ _pCircuit->nGate()) == 0){
                     q0 = gate.targetPhysicalQubit(0);
                     q1 = gate.targetPhysicalQubit(1);
                     gateExecutionTime = (vPushForwardDepth[q0] < vPushForwardDepth[q1]) ? vPushForwardDepth[q1] : vPushForwardDepth[q0];
