@@ -287,12 +287,14 @@ class OLSQ:
         self._add_dependency_constraints(lsqc, time, bound_depth)
         self._add_swap_constraints(bound_depth, sigma, lsqc)
         self._add_transformation_constraints(bound_depth, lsqc, sigma, pi)
-        lsqc.add([UGE(1, time[l]) for l in range(len(self.list_gate_qubits))])
-        print("time to generate constraints: {}".format(timeit.default_timer() - start))
-        self._add_atmostk_cnf(lsqc, sigma, bound_swap, bound_depth-1)
+        length = int(math.log2(bound_depth))+1
+        bit_tight_bound_depth = BitVecVal(bound_depth-1, length)
+        lsqc.add([UGE(bit_tight_bound_depth, time[l]) for l in range(len(self.list_gate_qubits))])
+        # print("time to generate constraints: {}".format(timeit.default_timer() - start))
+        # self._add_atmostk_cnf(lsqc, sigma, bound_swap, bound_depth-1)
         start = timeit.default_timer()
         tactic = Then('simplify','propagate-values','solve-eqs','card2bv','bit-blast', 'tseitin-cnf')
-        output_file_name = folder+"/"+str(self.count_physical_qubit)+"_"+str(self.count_program_qubit) + "_21.txt"
+        output_file_name = folder+"/"+str(self.count_physical_qubit)+"_"+str(self.count_program_qubit) + "_" + str(bound_depth) + ".txt"
         cnf = tactic(lsqc)[0]
         print("time to generate cnf: {}".format(timeit.default_timer() - start))
         with open(output_file_name,"w") as ous:

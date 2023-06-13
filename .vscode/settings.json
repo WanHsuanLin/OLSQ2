@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "utility": "cpp",
+        "vector": "cpp",
+        "chrono": "cpp",
+        "complex": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "__split_buffer": "cpp",
+        "deque": "cpp",
+        "__tree": "cpp",
+        "bitset": "cpp",
+        "set": "cpp"
+    }
+}

@@ -75,15 +75,26 @@ def get_device_by_name(name, swap_duration):
                         connection=device_set_edge[name], swap_duration=swap_duration)
     return device
 
-def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, commute, encoding, swap_bound = -1):
+def run_olsq_tbolsq(obj_is_swap, circuit_info, mode, device, use_sabre, encoding, swap_bound = -1):
     lsqc_solver = OLSQ(obj_is_swap = obj_is_swap, mode=mode, encoding = encoding, swap_up_bound=swap_bound)
     lsqc_solver.setprogram(circuit_info)
     lsqc_solver.setdevice(device)
     start = timeit.default_timer()
-    result = lsqc_solver.solve(use_sabre, commute=commute, output_mode="IR")
+    result = lsqc_solver.solve(use_sabre, output_mode="IR")
     stop = timeit.default_timer()
     print('Time: ', stop - start)  
     return result
+
+def dump_olsq_tbolsq(folder, obj_is_swap, circuit_info, mode, device):
+    lsqc_solver = OLSQ(obj_is_swap = obj_is_swap, mode=mode, encoding = 1)
+    lsqc_solver.setprogram(circuit_info)
+    lsqc_solver.setdevice(device)
+    start = timeit.default_timer()
+    for i in range(1, 12):
+        lsqc_solver.dump(folder, bound_depth=i)
+    stop = timeit.default_timer()
+    print('Time: ', stop - start)  
+    return 
 
 if __name__ == "__main__":
     # Initialize parser
@@ -105,14 +116,14 @@ if __name__ == "__main__":
         help="Use TB-OLSQ")
     parser.add_argument("--swap", action='store_true', default=False,
         help="Optimize SWAP")
-    parser.add_argument("--all_commute", action='store_true', default=False,
-        help="All gates  are commute. e.g., qaoa")
+    # parser.add_argument("--all_commute", action='store_true', default=False,
+    #     help="All gates  are commute. e.g., qaoa")
     parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
         help="user define swap bound")
     parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=1,
         help="swap duration")
     # Read arguments from command line
-
+    
     args = parser.parse_args()
 
     circuit_info = open(args.qasm, "r").read()
@@ -131,7 +142,10 @@ if __name__ == "__main__":
     mode = "normal"
     if args.tran:
         mode = "transition"
-    result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.all_commute, args.encoding)
+
+    # dump_olsq_tbolsq(args.folder, args.swap, circuit_info, mode, device)
+
+    result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.encoding)
     data["device"] = str(args.device)
     data["mode"] = mode
     data["depth"] = result[0]
