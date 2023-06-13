@@ -89,7 +89,6 @@ class OLSQ{
             bool         is_use_SABRE_for_swap         = false;
             bool         is_given_dependency           = false;
             bool         is_given_depth                = false;
-            bool         is_given_mapping_region       = false;
             bool         use_window_range_for_gate     = false;
             unsigned_t   max_depth                     = 8;  //  always (power of 2), for bit length 
             unsigned_t   max_depth_bit                 = 3;  
@@ -191,10 +190,6 @@ class OLSQ{
         void constructGateTimeWindow();
         void updateGateTimeWindow(unsigned_t d);
         void printGateTimeWindow();
-
-        void collectQubitRegion();
-        void bfsSearch(unsigned_t q);
-        void expandRegion(unsigned_t q);
 };
 OLSQ_NAMESPACE_HPP_END
 
