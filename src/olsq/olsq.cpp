@@ -792,7 +792,7 @@ void OLSQ::asapScheduling(){
         if (block < _pCircuit->circuitDepth() - 1){
             for (j = 0; j < _pCircuit->nSwapGate(); ++j){
                 Gate & gate = _pCircuit->swapGate(j);
-                if (gate.executionTime() == block && sGateId.count(gate.idx()) == 0){
+                if (gate.executionTime() == block && sGateId.count(gate.idx()+ _pCircuit->nGate()) == 0){
                     // cout << "swap gate " << gate.idx() << endl;
                     // cout << "vPushForwardDepth[0] " << vPushForwardDepth[gate.targetPhysicalQubit(0)] << endl;
                     // cout << "vPushForwardDepth[1] " << vPushForwardDepth[gate.targetPhysicalQubit(1)] << endl;
