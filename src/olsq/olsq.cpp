@@ -439,8 +439,10 @@ void OLSQ::addSwapCountConstraintsZ3(unsigned_t bound){
     unsigned_t sigmaT, sigmaE, var;
     const BitwuzlaSort *sortbool = bitwuzla_mk_bool_sort(_smt.pSolver);
     string s;
+    // unsigned_t length = 0;
     for(vector<int_t>& clause : formula){
         vOrs.clear();
+        // length += clause.size();
         for(int& lit : clause){
             var = abs(lit);
             if(var < firstFreshVariable){
@@ -472,6 +474,10 @@ void OLSQ::addSwapCountConstraintsZ3(unsigned_t bound){
         }
         bitwuzla_assert(_smt.pSolver, cnf);
     }
+    // cerr << "num of additional var: " << mAncillary.size() << endl;
+    // cerr << "num of ori var: " << firstFreshVariable - 1 << endl;
+    // cerr << "total clause: " << formula.size() << endl;
+    // cerr << "avg length: " << (double)length/(double)formula.size() << endl;
 }
 
 bool OLSQ::checkModel(){
@@ -574,8 +580,10 @@ bool OLSQ::optimizeSwap(){
     unsigned_t step = 2; 
     while (reduce_swap && _timer.fullRealTime() < _olsqParam.timeout){
         // cout << "enter loop" << endl;
+        bitwuzla_push(_smt.pSolver, 1);
         addDepthConstraintsZ3();
         reduce_swap = optimizeSwapForDepth(lower_swap_bound, upper_swap_bound, firstRun);
+        bitwuzla_pop(_smt.pSolver, 1);
         upper_swap_bound = _pCircuit->nSwapGate() - 1;
         firstRun = false;
         // getchar();
@@ -819,7 +827,7 @@ void OLSQ::asapScheduling(){
         if (block < _pCircuit->circuitDepth() - 1){
             for (j = 0; j < _pCircuit->nSwapGate(); ++j){
                 Gate & gate = _pCircuit->swapGate(j);
-                if (gate.executionTime() == block && sGateId.count(gate.idx()) == 0){
+                if (gate.executionTime() == block && sGateId.count(gate.idx()+ _pCircuit->nGate()) == 0){
                     q0 = gate.targetPhysicalQubit(0);
                     q1 = gate.targetPhysicalQubit(1);
                     gateExecutionTime = (vPushForwardDepth[q0] < vPushForwardDepth[q1]) ? vPushForwardDepth[q1] : vPushForwardDepth[q0];
