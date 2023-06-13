@@ -704,12 +704,14 @@ void OLSQ::extractModel(){
             vvTimeSwap[t][e] = stoi(s, nullptr, 2);
         }
     }
-    for (e = 0; e < _device.nEdge(); ++e){
-        for (t = _olsqParam.swap_duration -1; t < bound; ++t){
-            if(vvTimeSwap[t][e] && vvTimeSwap[t + _olsqParam.swap_duration][e]){
-                // only cancel two consecutive swap
-                vvTimeSwap[t][e] = 0;
-                vvTimeSwap[t + _olsqParam.swap_duration][e] = 0;
+    if(!_olsqParam.is_transition){
+        for (e = 0; e < _device.nEdge(); ++e){
+            for (t = _olsqParam.swap_duration -1; t < bound; ++t){
+                if(vvTimeSwap[t][e] && vvTimeSwap[t + _olsqParam.swap_duration][e]){
+                    // only cancel two consecutive swap
+                    vvTimeSwap[t][e] = 0;
+                    vvTimeSwap[t + _olsqParam.swap_duration][e] = 0;
+                }
             }
         }
     }
