@@ -97,10 +97,11 @@ def run_olsq_tbolsq(filename, circuit_info, device: Device, connection, mode_is_
     b_file = b_file.split('/')
     b_file = b_file[-1]
     filename = b_file + ".out"
-    result = lsqc_solver.run(filename)
+    lsqc_solver.run(filename)
+    # result = lsqc_solver.dump()
     stop = timeit.default_timer()
     print('Time: ', stop - start)  
-    return result
+    return 
 
 if __name__ == "__main__":
     # Initialize parser

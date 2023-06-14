@@ -49,15 +49,18 @@ void OLSQ::run(string const & fileName){
 
 void OLSQ::dump(){
     // for formulation generation
-    _olsqParam.min_depth = 21;
+    _olsqParam.min_depth = 13;
     increaseDepthBound();
+    constructDependency();
     if (!_olsqParam.is_transition && _olsqParam.use_window_range_for_gate){
         constructGateTimeWindow();
     }
     fprintf(stdout, "[Info] Generating formulation                        \n");
     generateFormulationZ3();
     addDepthConstraintsZ3();
-    string fileName = to_string(_device.nQubit()) + "_" + to_string(_pCircuit->nGate()) + "_21_timewindow.txt";
+    unsigned_t swap_bound = 19;
+    addSwapCountConstraintsZ3(swap_bound);
+    string fileName = to_string(_device.nQubit()) + "_" + to_string(_pCircuit->nGate()) + "_" + to_string(_olsqParam.min_depth) + "_" + to_string(swap_bound) + "_timewindow_card.txt";
     FILE *ptr = fopen(fileName.c_str(),"w");
     bitwuzla_dump_formula(_smt.pSolver, "smt2", ptr);
 }
@@ -71,6 +74,7 @@ void OLSQ::runSMT(){
             fprintf(stdout, "[Info] Longest chain = %d\n", _olsqParam.min_depth);
         }
     }
+    increaseDepthBound();
     bool solve = false;
     unsigned_t iter = 0;
     if (!_olsqParam.is_transition && _olsqParam.use_window_range_for_gate){
@@ -478,6 +482,58 @@ void OLSQ::addSwapCountConstraintsZ3(unsigned_t bound){
     // cerr << "num of ori var: " << firstFreshVariable - 1 << endl;
     // cerr << "total clause: " << formula.size() << endl;
     // cerr << "avg length: " << (double)length/(double)formula.size() << endl;
+
+    // unsigned_t bit_length_space, bit_length_time;
+    // bit_length_space = ceil(log2(_device.nEdge() + 1));
+    // bit_length_time = _olsqParam.max_depth_bit;
+    // vector<const BitwuzlaTerm*> vSwapSpace;
+    // vector<const BitwuzlaTerm*> vSwapTime;
+    // vSwapSpace.reserve(bound);
+    // vSwapTime.reserve(bound);
+    // const BitwuzlaTerm* cond;
+    // string s;
+    // unsigned_t i, t, e;
+
+    // // Create a bit-vector sort of size 1.
+    // const BitwuzlaSort *sortbvspace = bitwuzla_mk_bv_sort(_smt.pSolver, bit_length_space);
+    // const BitwuzlaSort *sortbvtime = bitwuzla_mk_bv_sort(_smt.pSolver, bit_length_time);
+
+    // const BitwuzlaTerm * zeroT = bitwuzla_mk_bv_zero(_smt.pSolver, sortbvtime);
+    // const BitwuzlaTerm * zeroE = bitwuzla_mk_bv_zero(_smt.pSolver, sortbvspace);
+    // const BitwuzlaTerm * nEdge = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvspace, _device.nEdge());
+    // const BitwuzlaTerm * bvt = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvtime, _olsqParam.min_depth);
+
+    // for (i = 0; i < bound; ++i){
+    //     s = "swap_time_" + to_string(i);
+    //     vSwapTime.emplace_back(bitwuzla_mk_const(_smt.pSolver, sortbvtime, s.c_str()));
+    //     s = "swap_space_" + to_string(i);
+    //     vSwapSpace.emplace_back(bitwuzla_mk_const(_smt.pSolver, sortbvspace, s.c_str()));
+    // }
+
+    // for (i = 0; i < bound; ++i){
+    //     bitwuzla_assert(_smt.pSolver, bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_BV_ULE, zeroE, vSwapSpace[i]));
+    //     bitwuzla_assert(_smt.pSolver, bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_BV_ULT, vSwapSpace[i], nEdge));
+    //     bitwuzla_assert(_smt.pSolver, bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_BV_ULE, zeroT, vSwapTime[i]));
+    //     bitwuzla_assert(_smt.pSolver, bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_BV_ULT, vSwapTime[i], bvt));
+    // }
+
+    // for (t = 0; t < _olsqParam.min_depth; ++t){
+    //     bvt = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvtime, t);
+    //     for (e = 0; e < _device.nEdge(); ++e){
+    //         const BitwuzlaTerm * bve = bitwuzla_mk_bv_value_uint64(_smt.pSolver, sortbvspace, e);
+    //         cond = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_AND, 
+    //                 bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, vSwapTime[0], bvt),
+    //                 bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, vSwapSpace[0], bve));
+    //         for (i = 1; i < bound; ++i){
+    //             cond = bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_OR, cond,
+    //                         bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_AND, 
+    //                         bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, vSwapTime[i], bvt),
+    //                         bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_EQUAL, vSwapSpace[i], bve)));
+    //         }
+    //         bitwuzla_assert(_smt.pSolver, bitwuzla_mk_term2(_smt.pSolver, BITWUZLA_KIND_IMPLIES, _smt.vvSigma[t][e], cond));
+    //     }
+    // }
+    
 }
 
 bool OLSQ::checkModel(){
@@ -575,6 +631,7 @@ bool OLSQ::optimizeSwap(){
     unsigned_t lower_swap_bound = 0;
     unsigned_t upper_swap_bound = (_olsqParam.is_use_SABRE_for_swap) ? _olsqParam.sabre_swap_bound : _pCircuit->nGate();
     upper_swap_bound = (_pCircuit->nSwapGate() < upper_swap_bound) ? _pCircuit->nSwapGate() : upper_swap_bound;
+    upper_swap_bound = 7;
     bool reduce_swap = true;
     bool firstRun = true;
     unsigned_t step = 2; 
@@ -618,6 +675,7 @@ bool OLSQ::optimizeSwapForDepth(unsigned_t lower_swap_bound, unsigned_t upper_sw
         _timer.start(TimeUsage::PARTIAL);
         bitwuzla_push(_smt.pSolver, 1);
         addSwapCountConstraintsZ3(swap_bound);
+
         success = checkModel();
         fprintf(stdout, "[Info]          optimization results: %s                         \n", success ? "success" : "fail");
         _timer.showUsage("optimizing swap", TimeUsage::PARTIAL);
