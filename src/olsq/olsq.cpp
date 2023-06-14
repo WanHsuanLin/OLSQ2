@@ -60,7 +60,7 @@ void OLSQ::dump(){
     addDepthConstraintsZ3();
     unsigned_t swap_bound = 19;
     addSwapCountConstraintsZ3(swap_bound);
-    string fileName = to_string(_device.nQubit()) + "_" + to_string(_pCircuit->nGate()) + "_" + to_string(_olsqParam.min_depth) + "_" + to_string(swap_bound) + "_timewindow_card.txt";
+    string fileName = to_string(_device.nQubit()) + "_" + to_string(_pCircuit->nGate()) + "_" + to_string(_olsqParam.min_depth) + "_" + to_string(swap_bound) + "_timewindow_wo_card.txt";
     FILE *ptr = fopen(fileName.c_str(),"w");
     bitwuzla_dump_formula(_smt.pSolver, "smt2", ptr);
 }
