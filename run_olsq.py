@@ -116,8 +116,11 @@ if __name__ == "__main__":
         help="Use TB-OLSQ")
     parser.add_argument("--swap", action='store_true', default=False,
         help="Optimize SWAP")
+<<<<<<< HEAD
     # parser.add_argument("--all_commute", action='store_true', default=False,
     #     help="All gates  are commute. e.g., qaoa")
+=======
+>>>>>>> 161efad24acf0b26ee7ab6509b0ce81fd23145b1
     parser.add_argument("--swap_bound", dest="swap_bound", type=int, default=-1,
         help="user define swap bound")
     parser.add_argument("--swap_duration", dest="swap_duration", type=int, default=1,
@@ -142,9 +145,12 @@ if __name__ == "__main__":
     mode = "normal"
     if args.tran:
         mode = "transition"
+<<<<<<< HEAD
 
     # dump_olsq_tbolsq(args.folder, args.swap, circuit_info, mode, device)
 
+=======
+>>>>>>> 161efad24acf0b26ee7ab6509b0ce81fd23145b1
     result = run_olsq_tbolsq(args.swap, circuit_info, mode, device, args.sabre, args.encoding)
     data["device"] = str(args.device)
     data["mode"] = mode
