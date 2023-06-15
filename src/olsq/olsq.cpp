@@ -726,7 +726,7 @@ void OLSQ::extractModel(){
     unsigned_t circuitDepth = 0, i, gateTime, q, j, swapId, qId, t, e, tt;
     string s;
     // collect initial mapping
-    vector<int_t> vInitialMapping(_pCircuit->nProgramQubit(), -1);
+    // vector<int_t> vInitialMapping(_pCircuit->nProgramQubit(), -1);
 
     // collect gate execution time
     vector<int_t> vQubitFirstGateTime(_pCircuit->nProgramQubit(), -1);
@@ -858,7 +858,7 @@ void OLSQ::extractModel(){
     }
     
     for (i = 0; i < _pCircuit->nProgramQubit(); ++i){
-        _pCircuit->setInitialMapping(i, vInitialMapping[i]);
+        // _pCircuit->setInitialMapping(i, vInitialMapping[i]);
         // cerr << "vQubitLastGateTime[" << i << "]:" << vQubitLastGateTime[i] << endl;
         // cerr << "vQubitFirstGateTime[" << i << "]:" << vQubitFirstGateTime[i] << endl;
         const char *rstr1 = bitwuzla_get_bv_value(_smt.pSolver, _smt.vvPi[vQubitFirstGateTime[i]][i]);
