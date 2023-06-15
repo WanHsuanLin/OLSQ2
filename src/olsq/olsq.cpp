@@ -56,13 +56,28 @@ void OLSQ::dump(){
         constructGateTimeWindow();
     }
     fprintf(stdout, "[Info] Generating formulation                        \n");
-    generateFormulationZ3();
-    addDepthConstraintsZ3();
+    fprintf(stdout, "[Info]          constructing variables                       \n");
+    constructVariableZ3();
+    fprintf(stdout, "[Info]          constructing injective mapping constraint    \n");
+    addInjectiveMappingConstraintsZ3();
+    fprintf(stdout, "[Info]          constructing dependency constraint           \n");
+    addDependencyConstraintsZ3();
+    fprintf(stdout, "[Info]          constructing valid two-qubit gate constraint \n");
+    addValidTwoQubitGateConstraintsZ3();
+    fprintf(stdout, "[Info]          constructing swap overlapping constraint     \n");
+    addSwapConstraintsZ3();
+    fprintf(stdout, "[Info]          constructing mapping transformation constraint\n");
+    addTransformationConstraintsZ3();
+    
+
+    
     unsigned_t swap_bound = 19;
+    addDepthConstraintsZ3();
     addSwapCountConstraintsZ3(swap_bound);
-    string fileName = to_string(_device.nQubit()) + "_" + to_string(_pCircuit->nGate()) + "_" + to_string(_olsqParam.min_depth) + "_" + to_string(swap_bound) + "_timewindow_wo_card.txt";
-    FILE *ptr = fopen(fileName.c_str(),"w");
-    bitwuzla_dump_formula(_smt.pSolver, "smt2", ptr);
+    BitwuzlaResult status = bitwuzla_check_sat(_smt.pSolver);
+    // string fileName = to_string(_device.nQubit()) + "_" + to_string(_pCircuit->nGate()) + "_" + to_string(_olsqParam.min_depth) + "_" + to_string(swap_bound) + "_timewindow_card.txt";
+    // FILE *ptr = fopen(fileName.c_str(),"w");
+    // bitwuzla_dump_formula(_smt.pSolver, "smt2", ptr);
 }
 
 void OLSQ::runSMT(){
@@ -103,10 +118,10 @@ void OLSQ::generateFormulationZ3(){
     constructVariableZ3();
     fprintf(stdout, "[Info]          constructing injective mapping constraint    \n");
     addInjectiveMappingConstraintsZ3();
-    fprintf(stdout, "[Info]          constructing valid two-qubit gate constraint \n");
-    addValidTwoQubitGateConstraintsZ3();
     fprintf(stdout, "[Info]          constructing dependency constraint           \n");
     addDependencyConstraintsZ3();
+    fprintf(stdout, "[Info]          constructing valid two-qubit gate constraint \n");
+    addValidTwoQubitGateConstraintsZ3();
     fprintf(stdout, "[Info]          constructing swap overlapping constraint     \n");
     addSwapConstraintsZ3();
     fprintf(stdout, "[Info]          constructing mapping transformation constraint\n");

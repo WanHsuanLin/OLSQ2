@@ -160,3 +160,4 @@ if __name__ == "__main__":
     
 # python3 run_olsq.py --dt grid --d 3 --b qaoa --qf ../quantum_cir_benchmark/qaoa/qaoa_8_0.qasm
 # python3 run_olsq.py --dt grid --d 4 --b qaoa --qf ../quantum_cir_benchmark/qaoa/qaoa_16_0.qasm
+# python3 run_olsq.py --dt grid --d 5 --b qaoa --qf ../quantum_cir_benchmark/qaoa/qaoa_24_0.qasm --gt --swap
