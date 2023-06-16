@@ -587,7 +587,7 @@ bool OLSQ::optimizeSwap(){
         return false;
     }
 
-    unsigned_t lower_swap_bound = (_olsqParam.is_transition) ? _olsqParam.min_depth - 1 : 0;
+    unsigned_t lower_swap_bound = 0;
     unsigned_t upper_swap_bound = (_olsqParam.is_use_SABRE_for_swap) ? _olsqParam.sabre_swap_bound : _pCircuit->nGate();
     upper_swap_bound = (_pCircuit->nSwapGate() < upper_swap_bound) ? _pCircuit->nSwapGate() : upper_swap_bound;
     // cout << "swap lower bound = " << lower_swap_bound << " , swap upper bound = " << upper_swap_bound << endl;
@@ -791,7 +791,7 @@ void OLSQ::asapScheduling(){
         if (block < _pCircuit->circuitDepth() - 1){
             for (j = 0; j < _pCircuit->nSwapGate(); ++j){
                 Gate & gate = _pCircuit->swapGate(j);
-                if (gate.executionTime() == block && sGateId.count(gate.idx()) == 0){
+                if (gate.executionTime() == block && sGateId.count(gate.idx()+ _pCircuit->nGate()) == 0){
                     // cout << "swap gate " << gate.idx() << endl;
                     // cout << "vPushForwardDepth[0] " << vPushForwardDepth[gate.targetPhysicalQubit(0)] << endl;
                     // cout << "vPushForwardDepth[1] " << vPushForwardDepth[gate.targetPhysicalQubit(1)] << endl;
