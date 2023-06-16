@@ -108,7 +108,7 @@ void OLSQ::runSMT(){
         if(!solve){
             increaseDepthBound();
         }
-        ++iter;
+        ++_iter;
     }
 }
 
