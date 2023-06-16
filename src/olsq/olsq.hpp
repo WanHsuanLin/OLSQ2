@@ -38,7 +38,7 @@ class OLSQ{
         bool                          isValidDependencyIdx(unsigned_t idx) const { return 0 <= idx && idx < _vpGateDependency.size();}
         pair<unsigned_t, unsigned_t>& dependency(unsigned_t idx)                 { assert(isValidDependencyIdx(idx)); return _vpGateDependency[idx]; }        
         
-        void reset()                                            { _smt.reset();  
+        void reset()                                            { _smt.reset(_olsqParam.timeout, 0);  
                                                                     if(_olsqParam.is_transition)
                                                                         initializeTransitionMode(); 
                                                                     else
@@ -115,10 +115,25 @@ class OLSQ{
             ~smt(){
                 bitwuzla_delete(pSolver);
             }
-            void reset(){
+             static int_t isTimeout(void* data){
+                pair<TimeState, unsigned_t>* pState = ( pair<TimeState, unsigned_t>* ) data;
+                TimeState& fullStart = pState->first;
+                unsigned_t timeout = pState->second;
+                TimeState curSt;
+                curSt.checkUsage();
+                TimeState dur = diff(fullStart, curSt);
+                return (timeout < dur.userTime);
+            }
+
+            void reset(unsigned_t timeout, unsigned_t iter){
+                if(iter == 0){
+                    state.first.checkUsage();
+                    state.second = timeout;
+                }
                 bitwuzla_reset(pSolver);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_PRODUCE_MODELS, 1);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 1);
+                bitwuzla_set_termination_callback(pSolver, isTimeout, &state);
                 vvPi.clear();
                 vTg.clear();
                 vvSigma.clear();
@@ -127,6 +142,7 @@ class OLSQ{
             vector<vector<const BitwuzlaTerm*> >    vvPi;         // t->qId
             vector<const BitwuzlaTerm*>             vTg;
             vector<vector<const BitwuzlaTerm*> >   vvSigma;      // t->qId
+            pair<TimeState, unsigned_t>             state;
         } _smt;
 
     struct Node {
@@ -147,6 +163,7 @@ class OLSQ{
         Device&                                 _device;
         vector<pair<unsigned_t, unsigned_t> >   _vpGateDependency;
         unsigned_t                              _swapIdx;
+        unsigned_t                              _iter;
         unsigned_t                              _verbose;
         vector<pair<unsigned_t, unsigned_t> >   _vpGateTimeWindow; // pair<start time, end time>
         string                                  _outputQASMFile;

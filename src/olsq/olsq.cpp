@@ -91,29 +91,29 @@ void OLSQ::runSMT(){
     }
     increaseDepthBound();
     bool solve = false;
-    unsigned_t iter = 0;
+    _iter = 0;
     if (!_olsqParam.is_transition && _olsqParam.use_window_range_for_gate){
         constructGateTimeWindow();
     }
     while (!solve){
-        fprintf(stdout, "[Info] Iter %d: Solving with depth range (%d, %d)            \n", iter, _olsqParam.min_depth, _olsqParam.max_depth);
+        fprintf(stdout, "[Info] Iter %d: Solving with depth range (%d, %d)            \n", _iter, _olsqParam.min_depth, _olsqParam.max_depth);
         _timer.start(TimeUsage::PARTIAL);
-        fprintf(stdout, "[Info] Iter %d: Generating formulation                        \n", iter);
+        fprintf(stdout, "[Info] Iter %d: Generating formulation                        \n", _iter);
         generateFormulationZ3();
         _timer.showUsage("Generating formulation", TimeUsage::PARTIAL);
         // _timer.showUsage("Generating formulation", TimeUsage::FULL);
         _timer.start(TimeUsage::PARTIAL);
-        fprintf(stdout, "[Info] Iter %d: Optimizing model                             \n", iter);
+        fprintf(stdout, "[Info] Iter %d: Optimizing model                             \n", _iter);
         solve = optimize();
         if(!solve){
             increaseDepthBound();
-            _smt.reset();
         }
         ++iter;
     }
 }
 
 void OLSQ::generateFormulationZ3(){
+    _smt.reset(_olsqParam.timeout, _iter);
     fprintf(stdout, "[Info]          constructing variables                       \n");
     constructVariableZ3();
     fprintf(stdout, "[Info]          constructing injective mapping constraint    \n");
@@ -671,7 +671,6 @@ bool OLSQ::optimizeSwap(){
             else{
                 _olsqParam.min_depth += step;
                 increaseDepthBound();
-                _smt.reset();
                 generateFormulationZ3();
             }
             _timer.showUsage("Generating formulation", TimeUsage::PARTIAL);
