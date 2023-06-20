@@ -829,11 +829,11 @@ void OLSQ::extractModel(){
                     }
                     if(vvPhy2Pro[t][swapTargetQubit[0]] != -1){
                         vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] > t) ? t: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
-                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] < t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
+                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]] <= t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[0]]];
                     }
                     if(vvPhy2Pro[t][swapTargetQubit[1]] != -1){
                         vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] > t) ? t: vQubitFirstGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
-                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] < t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
+                        vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] = (vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]] <= t) ? t + 1: vQubitLastGateTime[vvPhy2Pro[t][swapTargetQubit[1]]];
                     }
                 }
                 // else{
