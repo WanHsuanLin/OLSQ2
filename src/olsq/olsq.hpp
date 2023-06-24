@@ -108,6 +108,7 @@ class OLSQ{
                 // solver = z3::solver(c);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_PRODUCE_MODELS, 1);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 1);
+                bitwuzla_set_option(pSolver, BITWUZLA_OPT_SEED, 0);
                 vvPi.clear();
                 vTg.clear();
                 vvSigma.clear();
@@ -133,6 +134,7 @@ class OLSQ{
                 bitwuzla_reset(pSolver);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_PRODUCE_MODELS, 1);
                 bitwuzla_set_option(pSolver, BITWUZLA_OPT_INCREMENTAL, 1);
+                bitwuzla_set_option(pSolver, BITWUZLA_OPT_SEED, 0);
                 bitwuzla_set_termination_callback(pSolver, isTimeout, &state);
                 vvPi.clear();
                 vTg.clear();
