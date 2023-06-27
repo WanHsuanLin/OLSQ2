@@ -286,7 +286,7 @@ class OLSQ:
         self._add_consistency_gate_constraints(bound_depth, pi, time, lsqc)
         self._add_dependency_constraints(lsqc, time, bound_depth)
         if self.mode == Mode.transition:
-                self._add_swap_constraints(bound_depth, sigma, lsqc)
+            self._add_swap_constraints(bound_depth, sigma, lsqc)
         else:
             self._add_swap_constraints(bound_depth, sigma, lsqc, True, time, pi)
         self._add_transformation_constraints(bound_depth, lsqc, sigma, pi)
