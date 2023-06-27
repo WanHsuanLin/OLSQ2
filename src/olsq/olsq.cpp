@@ -917,7 +917,7 @@ void OLSQ::asapScheduling(){
                     vPushForwardDepth[q1] = gateExecutionTime;
                     maxTime = (maxTime < gateExecutionTime) ? gateExecutionTime : maxTime;
                     gate.setExecutionTime(gateExecutionTime);
-                    sGateId.insert(gate.idx());
+                    sGateId.insert(gate.idx()+ _pCircuit->nGate());
                 }
             }
         }
