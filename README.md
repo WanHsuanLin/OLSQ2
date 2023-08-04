@@ -18,15 +18,22 @@ Below is a brief tutorial on how to use the package.
 
 ## Setup
 
+Install Bitwuzla
+```
+git clone https://github.com/bitwuzla/bitwuzla.git
+git checkout 76e9dd63fe66f114e84d145990eb07d067184611
+```
+Follow README instruction in Bitwuzla for installation.
+
 ```
 git clone --recursive https://github.com/WanHsuanLin/OLSQ2.git
-git checkout cpp
+git checkout bitwuzla
 mkdir build && cd build
 cmake ..
 ```
 
 - If you have an existing pybind11 installation, you do not need `--recursive`.
-- You must have an existing z3 installation, which you can specify using `CMAKE_PREFIX_PATH` or through other cmake mechanisms.
+- You must have an existing bitwuzla installation, which you can specify using `CMAKE_PREFIX_PATH` or through other cmake mechanisms.
 - Please make sure that you have `networkx` version `>=2.5` and `z3-solver` version `>=4.8.9.0` in your Python environment.
 
 ## Initialization
