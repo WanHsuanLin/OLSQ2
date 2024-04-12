@@ -306,7 +306,7 @@ void OLSQ::addTransformationConstraintsZ3(){
     unsigned_t i, j, t, e, nSpanEdge;
     // Mapping Not Transformations by SWAP Gates.
     // fprintf(stdout, "[Info]          Mapping Not Transformations by SWAP Gates.                       \n");
-    for (t = _olsqParam.swap_duration -1; t < _olsqParam.max_depth - 1; ++t){
+    for (t = 0; t < _olsqParam.max_depth - 1; ++t){
         for (i = 0; i < _pCircuit->nProgramQubit(); ++i){
             for (j = 0; j < _device.nQubit(); ++j){
                 Qubit& qubit = _device.qubit(j);
@@ -323,7 +323,7 @@ void OLSQ::addTransformationConstraintsZ3(){
     }
     // Mapping Transformations by SWAP Gates.
     // fprintf(stdout, "[Info]          Mapping Transformations by SWAP Gates.                       \n");
-    for (t = _olsqParam.swap_duration -1; t < _olsqParam.max_depth - 1; ++t){
+    for (t = 0; t < _olsqParam.max_depth - 1; ++t){
         for (i = 0; i < _pCircuit->nProgramQubit(); ++i){
             for (e = 0; e < _device.nEdge(); ++e){
                 _smt.smtSolver.add( !(_smt.vvSigma[t][e] && (_smt.vvPi[t][i] == (int_t)_device.edge(e).qubitId1()))
@@ -673,10 +673,11 @@ void OLSQ::outputQASM(string const & fileName){
         Gate & gate = _pCircuit->gate(i);
         vvTimeGate[gate.executionTime()].emplace_back(i);
     }
-        for (i = 0; i < _pCircuit->nSwapGate(); ++i){
+    for (i = 0; i < _pCircuit->nSwapGate(); ++i){
         Gate & gate = _pCircuit->swapGate(i);
-        vvTimeGate[gate.executionTime()].emplace_back(i);
+        vvTimeGate[gate.executionTime()].emplace_back(i + _pCircuit->nGate());
     }
+    cout << fileName << endl;
     line = "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[" + to_string(_device.nQubit()) + "];\ncreg c[" + to_string(_device.nQubit()) + "];\n";
     for (t = 0; t < _pCircuit->circuitDepth(); ++t){
         for (i = 0; i < vvTimeGate[t].size(); ++i){
@@ -686,7 +687,6 @@ void OLSQ::outputQASM(string const & fileName){
             else{
                 gate = _pCircuit->swapGate(vvTimeGate[t][i] - _pCircuit->nGate());
             }
-            
             if (gate.nTargetQubit() == 1){
                 line = line + gate.name() + " q[" + to_string(gate.targetPhysicalQubit(0)) + "];\n";
             }
@@ -695,6 +695,15 @@ void OLSQ::outputQASM(string const & fileName){
             }
         }
     }
+    line += "\n// initial mapping\n";
+    for(i = 0; i < _pCircuit->nProgramQubit(); ++i){
+        line += "// q[" + to_string(i) + "]->c[" + to_string(_pCircuit->initialMapping(i)) + "];\n";
+    }
+    line += "\n// final mapping\n";
+    for(i = 0; i < _pCircuit->nProgramQubit(); ++i){
+        line += "// q[" + to_string(i) + "]->c[" + to_string(_pCircuit->finalMapping(i)) + "];\n";
+    }
+
     FILE* fout = fopen(fileName.c_str(), "w");
     fprintf(fout, "%s", line.c_str());
     fclose(fout);

@@ -3,8 +3,6 @@ from qiskit.transpiler import CouplingMap, Layout
 from qiskit import QuantumCircuit
 from qiskit.transpiler import PassManager
 from qiskit.transpiler.passes import SabreLayout, SabreSwap
-from qiskit.converters import *
-from qiskit.transpiler.passes import Unroller
 
 def run_sabre(is_qasm, circuit_info, coupling, count_physical_qubit):
     # read qasm

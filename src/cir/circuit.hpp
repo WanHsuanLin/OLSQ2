@@ -54,6 +54,7 @@ class Circuit
         Gate&              gate(unsigned_t idx)                         { assert(isValidGateIdx(idx)); return _vGate[idx]; }
         Gate&              swapGate(unsigned_t idx)                     { assert(isValidSwapGateIdx(idx)); return _vSwapGate[idx]; }
         int_t              initialMapping(unsigned_t idx)         const { assert(isValidQubitIdx(idx)); return _vInitialMapping[idx]; }
+        int_t              finalMapping(unsigned_t idx)         const { assert(isValidQubitIdx(idx)); return _vFinalMapping[idx]; }
         // set function
         void addGate( string const & gateName, vector<unsigned_t> const & vTargetQubit, unsigned_t duration = 1);
         // void addGate( string const & gateName, vector<int_t> const & vTargetQubit, unsigned_t duration = 1);
