@@ -9,8 +9,11 @@ Thus, it is necessary to perform 'quantum layout synthesis', QLS, which transfor
 OLSQ2 can solve QLS optimally with respect to depth and number of SWAP gates.
 There is also a transition-based mode (TB) to speed it up with little loss of optimality.
 
-For more details on the theory and the experiments, please refer to [the paper]().
-Below is a brief tutorial on how to use the package.
+For more details on the theory and the experiments, please refer to [the paper](). 
+The main banch of this repo is the python implementation of OLSQ2 using python interface of z3. Note that the python interface provided by z3 is not efficient for SMT model construction. For large instance, we may spend up to 90% of runtime for SMT model construction with only 10% of time on solving the model.
+To imrove efficiency, we provide the implementation using z3 c++ interface in the branch "cpp".
+A more scalable version is provided based on a more scalable bit-vector solver Bitwuzla in the branch "Bitwuzla".
+Below is a brief tutorial on how to use the package. 
 
 ## Installation
 
@@ -192,4 +195,13 @@ python3 run_olsq.py --dt sycamore --f . --qf benchmark/qaoa/qaoa_16_0.qasm --tra
 
 ## BibTeX Citation
 ```
+@INPROCEEDINGS{10247760,
+  author={Lin, Wan-Hsuan and Kimko, Jason and Tan, Bochen and Bjørner, Nikolaj and Cong, Jason},
+  booktitle={2023 60th ACM/IEEE Design Automation Conference (DAC)}, 
+  title={Scalable Optimal Layout Synthesis for NISQ Quantum Processors}, 
+  year={2023},
+  volume={},
+  number={},
+  pages={1-6},
+  doi={10.1109/DAC56929.2023.10247760}}
 ```
