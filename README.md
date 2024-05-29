@@ -1,4 +1,4 @@
-
+[![dac](https://img.shields.io/badge/Published-DAC'23-brightgreen.svg?style=for-the-badge)]()
 
 # OLSQ2: Scalable Optimal Layout Synthesis for NISQ Quantum Processors
 
