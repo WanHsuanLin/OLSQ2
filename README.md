@@ -1,20 +1,17 @@
-[![iccad](https://img.shields.io/badge/Published-ICCAD'20-brightgreen.svg?style=for-the-badge)](https://ieeexplore.ieee.org/document/9256696)
-[![arXiv](https://img.shields.io/badge/arXiv-2007.15671-brightgreen.svg?style=for-the-badge)](https://arxiv.org/abs/2007.15671)
-[![Unitary Fund](https://img.shields.io/badge/Supported%20By-UNITARY%20FUND-brightgreen.svg?style=for-the-badge)](http://unitary.fund)
+[![dac](https://img.shields.io/badge/Published-DAC'23-brightgreen.svg?style=for-the-badge)]()
 
-# OLSQ: Optimal Layout Synthesis for Quantum Computing
+# OLSQ2: Scalable Optimal Layout Synthesis for NISQ Quantum Processors
 
 Many quantum computers have constraints on the connections between qubits.
 However, a quantum program may not conform to these constraints.
-Thus, it is necessary to perform 'layout synthesis for quantum computing', LSQC, which transforms quantum programs prior to execution so that the connectivity issues are resolved.
+Thus, it is necessary to perform 'quantum layout synthesis', QLS, which transforms quantum programs prior to execution so that the connectivity issues are resolved.
 
-OLSQ can solve LSQC optimally with respect to depth, number of SWAP gates, or fidelity.
+OLSQ2 can solve QLS optimally with respect to depth and number of SWAP gates.
 There is also a transition-based mode (TB) to speed it up with little loss of optimality.
-TB-OLSQ can reduce SWAP count by 70% and increase fidelity by 1.30x compared to leading previous works at the time of publication.
 
-For more details on the theory and the experiments, please refer to [the paper](https://doi.org/10.1145/3400302.3415620).
-For more details on the software implementation, please refer to the [API documentation](https://olsq.readthedocs.io/en/latest/).
-Below is a brief tutorial on how to use the package.
+For more details on the theory and the experiments, please refer to [the paper](https://ieeexplore.ieee.org/abstract/document/10247760). 
+In this branch, we provide a more scalable version based on a more scalable bit-vector solver Bitwuzla.
+Below is a brief tutorial on how to use the package. 
 
 ## Setup
 
