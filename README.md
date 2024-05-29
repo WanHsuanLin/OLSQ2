@@ -11,8 +11,8 @@ There is also a transition-based mode (TB) to speed it up with little loss of op
 
 For more details on the theory and the experiments, please refer to [the paper](https://ieeexplore.ieee.org/abstract/document/10247760). 
 The main banch of this repo is the python implementation of OLSQ2 using python interface of z3. Note that the python interface provided by z3 is not efficient for SMT model construction. For large instance, we may spend up to 90% of runtime for SMT model construction with only 10% of time on solving the model.
-To imrove efficiency, we provide the implementation using z3 c++ interface in the branch "cpp".
-A more scalable version is provided based on a more scalable bit-vector solver Bitwuzla in the branch "Bitwuzla".
+To imrove efficiency, we provide the implementation using z3 c++ interface in the branch "cpp", which reduce the overhead of model construction to 2%.
+A more scalable version is provided based on a more scalable bit-vector solver Bitwuzla in the branch "Bitwuzla" with a 2x speedup.
 Below is a brief tutorial on how to use the package. 
 
 ## Installation
