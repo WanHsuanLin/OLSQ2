@@ -1,6 +1,4 @@
-[![iccad](https://img.shields.io/badge/Published-ICCAD'20-brightgreen.svg?style=for-the-badge)](https://ieeexplore.ieee.org/document/9256696)
-[![arXiv](https://img.shields.io/badge/arXiv-2007.15671-brightgreen.svg?style=for-the-badge)](https://arxiv.org/abs/2007.15671)
-[![Unitary Fund](https://img.shields.io/badge/Supported%20By-UNITARY%20FUND-brightgreen.svg?style=for-the-badge)](http://unitary.fund)
+[![dac](https://img.shields.io/badge/Published-DAC'23-brightgreen.svg?style=for-the-badge)](https://ieeexplore.ieee.org/abstract/document/10247760)
 
 # OLSQ2: Scalable Optimal Layout Synthesis for NISQ Quantum Processors
 
@@ -11,7 +9,8 @@ Thus, it is necessary to perform 'quantum layout synthesis', QLS, which transfor
 OLSQ2 can solve QLS optimally with respect to depth and number of SWAP gates.
 There is also a transition-based mode (TB) to speed it up with little loss of optimality.
 
-For more details on the theory and the experiments, please refer to [the paper]().
+For more details on the theory and the experiments, please refer to [the paper](https://ieeexplore.ieee.org/abstract/document/10247760).
+To imrove efficiency, we provide the implementation using z3 c++ interface. 
 Below is a brief tutorial on how to use the package.
 
 ## Setup
